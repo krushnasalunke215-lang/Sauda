@@ -1,36 +1,40 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { LANGS, type CreateDealResult, type Deal, type Role } from '../../shared/types.js';
-import { MAX_NAME_CHARS, MAX_TEXT_CHARS, ServiceError, type DealService } from '../deals/service.js';
+import { normalizeAudioMime } from '../ai/media.js';
+import { MAX_NAME_CHARS, ServiceError, type DealService } from '../deals/service.js';
 import type { DealStore } from '../deals/store.js';
 import { invitePath, toView } from '../deals/view.js';
+import type { SampleLibrary } from './samples.js';
 
 export interface DealRouteDeps {
   store: DealStore;
   service: DealService;
+  samples: SampleLibrary;
   publicBaseUrl: string | null;
 }
 
 const idParam = { type: 'string', pattern: '^[0-9A-Z]{8}$' } as const;
-const params = (extra: Record<string, object> = {}) => ({
+export const params = (extra: Record<string, object> = {}) => ({
   type: 'object',
   required: ['id', ...Object.keys(extra)],
   properties: { id: idParam, ...extra },
 });
-const short = { type: 'string', pattern: '^[A-Za-z0-9_-]{1,40}$' } as const;
+export const short = { type: 'string', pattern: '^[A-Za-z0-9_-]{1,40}$' } as const;
 
-type IdParams = { id: string };
+export type IdParams = { id: string };
+
+/** The deal and role for a token (X-Sauda-Token header, or ?t= for media); 403 for a wrong token or an unknown deal. */
+export function authenticate(store: DealStore, dealId: string, token: unknown): { deal: Deal; role: Role } {
+  const found = typeof token === 'string' ? store.findByToken(dealId, token) : null;
+  if (!found) throw new ServiceError(403, 'forbidden');
+  return found;
+}
 
 export function dealRoutes(app: FastifyInstance, deps: DealRouteDeps): void {
   const { store, service } = deps;
   const baseUrl = (req: FastifyRequest) => deps.publicBaseUrl ?? `${req.protocol}://${req.host}`;
 
-  /** The deal and role for the X-Sauda-Token header; 403 for a wrong token or an unknown deal. */
-  const auth = (req: FastifyRequest<{ Params: IdParams }>): { deal: Deal; role: Role } => {
-    const token = req.headers['x-sauda-token'];
-    const found = typeof token === 'string' ? store.findByToken(req.params.id, token) : null;
-    if (!found) throw new ServiceError(403, 'forbidden');
-    return found;
-  };
+  const auth = (req: FastifyRequest<{ Params: IdParams }>) => authenticate(store, req.params.id, req.headers['x-sauda-token']);
 
   app.post(
     '/api/deals',
@@ -65,17 +69,29 @@ export function dealRoutes(app: FastifyInstance, deps: DealRouteDeps): void {
     return toView(deal, role, baseUrl(req));
   });
 
-  app.post<{ Params: IdParams; Body: { text: string } }>(
+  /**
+   * One turn: JSON {text}, a raw audio body (audio/* or video/mp4, up to 4 MB), or ?sample=<id> for a
+   * built-in clip of the caller's role. Interpretation runs in the background.
+   */
+  app.post<{ Params: IdParams; Querystring: { sample?: string }; Body: unknown }>(
     '/api/deals/:id/turns',
-    {
-      schema: {
-        params: params(),
-        body: { type: 'object', required: ['text'], properties: { text: { type: 'string', minLength: 1, maxLength: MAX_TEXT_CHARS } } },
-      },
-    },
+    { schema: { params: params(), querystring: { type: 'object', properties: { sample: short } } } },
     async (req, reply) => {
       const { deal, role } = auth(req);
-      const m = await service.addTextTurn(deal.id, role, req.body.text);
+      let m;
+      if (req.query.sample) {
+        const s = deps.samples.get(req.query.sample);
+        if (!s || s.kind !== 'voice') throw new ServiceError(404, 'sample_not_found');
+        if (s.role !== role) throw new ServiceError(403, 'sample_wrong_role');
+        m = await service.addVoiceTurn(deal.id, role, await deps.samples.readAudio(s), { sample: s.id });
+      } else if (Buffer.isBuffer(req.body)) {
+        const mimeType = normalizeAudioMime(req.headers['content-type']);
+        if (!mimeType) throw new ServiceError(415, 'unsupported_media_type');
+        m = await service.addVoiceTurn(deal.id, role, { mimeType, data: req.body });
+      } else {
+        const body = req.body as { text?: unknown } | null | undefined;
+        m = await service.addTextTurn(deal.id, role, body && typeof body === 'object' ? body.text : undefined);
+      }
       return reply.code(202).send({ messageId: m.id, seq: m.seq });
     },
   );

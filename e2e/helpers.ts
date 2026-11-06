@@ -1,4 +1,4 @@
-import { expect, type APIRequestContext, type Browser, type Locator, type Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Browser, type BrowserContextOptions, type Locator, type Page } from '@playwright/test';
 import type { CreateDealInput, CreateDealResult, Role } from '../shared/types.js';
 
 export const DEFAULT_DEAL: CreateDealInput = { makerName: 'Asha Chikan Studio', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' };
@@ -10,8 +10,12 @@ export async function createDeal(request: APIRequestContext, input: Partial<Crea
 }
 
 /** Opens the maker and the buyer in two separate browser contexts (two windows). */
-export async function openRoles(browser: Browser, deal: CreateDealResult): Promise<{ maker: Page; buyer: Page; close: () => Promise<void> }> {
-  const contexts = [await browser.newContext(), await browser.newContext()];
+export async function openRoles(
+  browser: Browser,
+  deal: CreateDealResult,
+  contextOptions: BrowserContextOptions = {},
+): Promise<{ maker: Page; buyer: Page; close: () => Promise<void> }> {
+  const contexts = [await browser.newContext(contextOptions), await browser.newContext(contextOptions)];
   const [maker, buyer] = await Promise.all(contexts.map((c) => c.newPage()));
   await maker.goto(deal.maker.url);
   await buyer.goto(deal.buyer.url);

@@ -7,6 +7,23 @@ export type Role = 'maker' | 'buyer';
 export const ROLES: readonly Role[] = ['maker', 'buyer'];
 export const otherRole = (r: Role): Role => (r === 'maker' ? 'buyer' : 'maker');
 
+/** True once the invoice shows at least the deposit paid (or the invoice paid in full). */
+export function depositPaid(d: { invoice: InvoiceSnapshot | null }): boolean {
+  const inv = d.invoice;
+  if (!inv) return false;
+  if (inv.status === 'PAID' || inv.status === 'MARKED_AS_PAID') return true;
+  return inv.depositCents > 0 && inv.paidCents >= inv.depositCents;
+}
+
+/** A built-in sample (GET /api/samples). */
+export interface SampleInfo {
+  id: string;
+  role: Role;
+  lang: Lang;
+  label: Record<Lang, string>;
+  kind: 'voice' | 'photo';
+}
+
 /** One term written in the maker's language and in the buyer's language. */
 export interface Bi {
   maker: string;
@@ -82,12 +99,49 @@ export interface TurnIntent {
   trackingNumber: string | null;
 }
 
+/** A stored upload: served at /api/deals/:id/media/:file?t=TOKEN. */
+export interface MediaRef {
+  file: string;
+  mimeType: string;
+  bytes: number;
+}
+
+export type PhotoKind = 'reference' | 'progress';
+export type CheckField = 'item' | 'color' | 'size' | 'measurements' | 'other';
+export const CHECK_FIELDS: readonly CheckField[] = ['item', 'color', 'size', 'measurements', 'other'];
+export type CheckStatus = 'matches' | 'differs' | 'cannot_verify';
+export const CHECK_STATUSES: readonly CheckStatus[] = ['matches', 'differs', 'cannot_verify'];
+
+/** One advisory check of a progress photo against the agreement. */
+export interface PhotoCheck {
+  field: CheckField;
+  status: CheckStatus;
+  note: Bi;
+}
+
+/** What Gemini vision made of a photo (advisory), and the buyer's decision on a progress photo. */
+export interface PhotoInfo {
+  kind: PhotoKind;
+  /** Reference photo: what it shows. */
+  description?: Bi;
+  details?: { aspect: string; value: Bi }[];
+  /** Progress photo: per-field checks against the agreement. */
+  checks?: PhotoCheck[];
+  summary?: Bi;
+  decision?: { approve: boolean; at: string };
+}
+
 export interface Message {
   id: string;
   seq: number;
   from: Role | 'system';
   kind: MessageKind;
   status: MessageStatus;
+  /** The original voice clip or photo. */
+  media?: MediaRef;
+  /** Id of the built-in sample clip this voice turn came from. */
+  sample?: string;
+  photo?: PhotoInfo;
   /** What the speaker said or typed, in the language it was said in (a BCP-47 code). */
   original?: { text: string; lang: string };
   /** The translation into the listener's language. */

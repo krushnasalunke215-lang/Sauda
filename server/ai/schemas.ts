@@ -1,5 +1,5 @@
 import { Ajv } from 'ajv';
-import { QUESTION_FIELDS } from '../../shared/types.js';
+import { CHECK_FIELDS, CHECK_STATUSES, QUESTION_FIELDS, type CheckField, type CheckStatus } from '../../shared/types.js';
 
 const nullable = (s: Record<string, unknown>) => ({ anyOf: [s, { type: 'null' }] });
 
@@ -116,5 +116,68 @@ export interface TurnOutput {
   intent: { kind: 'none' | 'add_tracking' | 'send_reminder'; carrier: string | null; tracking_number: string | null };
 }
 
+/** What a buyer's reference photo shows. */
+export const REFERENCE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    description: bi('One or two sentences on what the photo shows that matters for the order'),
+    details: {
+      type: 'array',
+      description: 'Up to 6 visible details that matter for making the item (embroidery, neckline, sleeves, fabric, colour). Empty when nothing is clear.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          aspect: { type: 'string', description: 'Lowercase English key, e.g. neckline, embroidery, color, sleeves, fabric.' },
+          value: bi('The detail as a short phrase that names the aspect, e.g. "Neckline: round with a keyhole"'),
+        },
+        required: ['aspect', 'value'],
+      },
+    },
+  },
+  required: ['description', 'details'],
+} as const;
+
+/** A maker's progress photo checked against the agreement. */
+export const PROGRESS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    checks: {
+      type: 'array',
+      description: 'One check per agreed term that a photo could show (item, color, size, measurements), plus other only for something clearly relevant.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          field: { type: 'string', enum: [...CHECK_FIELDS] },
+          status: {
+            type: 'string',
+            enum: [...CHECK_STATUSES],
+            description: 'matches or differs only when the photo clearly shows it; otherwise cannot_verify.',
+          },
+          note: bi('What the photo shows for this term, in a short sentence'),
+        },
+        required: ['field', 'status', 'note'],
+      },
+    },
+    summary: bi('One sentence for both parties; say that the check is advisory'),
+  },
+  required: ['checks', 'summary'],
+} as const;
+
+export interface ReferenceOutput {
+  description: BiOut;
+  details: { aspect: string; value: BiOut }[];
+}
+
+export interface ProgressOutput {
+  checks: { field: CheckField; status: CheckStatus; note: BiOut }[];
+  summary: BiOut;
+}
+
 const ajv = new Ajv({ strict: false, allErrors: true });
 export const validateTurn = ajv.compile<TurnOutput>(TURN_SCHEMA);
+export const validateReference = ajv.compile<ReferenceOutput>(REFERENCE_SCHEMA);
+export const validateProgress = ajv.compile<ProgressOutput>(PROGRESS_SCHEMA);

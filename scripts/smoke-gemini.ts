@@ -1,10 +1,14 @@
 /**
  * Live smoke test of the turn interpreter: real Gemini calls with the settings from .env.
  *   npm run smoke:gemini
+ *   npm run smoke:gemini -- --audio=<file>   (one spoken maker turn; MIME type from the extension)
  * Prints only the model, timing, fallback, schema validity, translation and extracted terms (never keys).
  */
-import { createGenAI, sdkCallModel } from '../server/ai/gemini.js';
-import { interpretTurn, type TurnResult } from '../server/ai/interpret.js';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { AiUnavailableError, createGenAI, sdkCallModel } from '../server/ai/gemini.js';
+import { interpretTurn, type TurnInput, type TurnResult } from '../server/ai/interpret.js';
+import { audioMimeFromFile } from '../server/ai/media.js';
 import { describeConfig, loadConfig } from '../server/config.js';
 import { makeDeal } from '../server/deals/store.js';
 import { patchDeal } from '../server/domain/agreement.js';
@@ -27,17 +31,20 @@ const deps = { callModel: sdkCallModel(createGenAI(config.gemini)), settings: co
 
 const deal: Deal = makeDeal({ maker: { name: 'Asha Chikan Studio', lang: 'hi' }, buyer: { name: 'Emily Carter', lang: 'en' } });
 
-async function turn(speaker: Role, text: string): Promise<TurnResult> {
+const audioArg = process.argv.slice(2).find((a) => a.startsWith('--audio='))?.slice('--audio='.length);
+
+async function turn(speaker: Role, input: TurnInput): Promise<TurnResult> {
   // interpretTurn only returns output that passed the Ajv TURN_SCHEMA check; otherwise it throws.
-  const r = await interpretTurn(deal, speaker, { text }, deps);
+  const r = await interpretTurn(deal, speaker, input, deps);
   const id = `m${deal.nextSeq++}`;
-  deal.messages.push({ id, seq: deal.nextSeq - 1, from: speaker, kind: 'text', status: 'done', original: { text, lang: r.detectedLanguage }, translation: r.translation, createdAt: new Date().toISOString() });
+  deal.messages.push({ id, seq: deal.nextSeq - 1, from: speaker, kind: 'text' in input ? 'text' : 'voice', status: 'done', original: { text: r.transcript, lang: r.detectedLanguage }, translation: r.translation, createdAt: new Date().toISOString() });
   patchDeal(deal, r.patch, id, new Date(), todayUtc());
   deal.questions = addQuestions(deal.questions, r.questions, id, new Date()).questions;
   console.log(`\n--- ${speaker} turn`);
   console.log(`model ${r.ai.model}, ${r.ai.ms} ms, fallback ${r.ai.fallback}, schema-valid true`);
-  console.log(`attempts: ${r.attempts.map((a) => `${a.model} ${a.outcome} ${a.ms} ms`).join('; ')}`);
+  console.log(`attempts: ${r.attempts.map((a) => `${a.model} ${a.outcome} ${a.ms} ms${a.detail ? ` (${a.detail.slice(0, 160)})` : ''}`).join('; ')}`);
   console.log(`detected language: ${r.detectedLanguage}`);
+  if (!('text' in input)) console.log(`transcript: ${r.transcript}`);
   console.log(`translation (${r.translation.lang}): ${r.translation.text}`);
   console.log(`terms: ${JSON.stringify(r.patch)}`);
   console.log(`questions: ${JSON.stringify(r.questions)}`);
@@ -45,11 +52,44 @@ async function turn(speaker: Role, text: string): Promise<TurnResult> {
   return r;
 }
 
+/** One spoken maker turn from a file. The price and deposit must come out right; the other terms are reported. */
+async function audioMain(file: string): Promise<void> {
+  const mimeType = audioMimeFromFile(file);
+  if (!mimeType) {
+    console.error(`Unsupported audio extension: ${path.extname(file)}`);
+    process.exit(2);
+  }
+  const data = readFileSync(file);
+  console.log(`audio: ${path.basename(file)}, ${mimeType}, ${data.length} bytes`);
+  let failed = false;
+  try {
+    const p = (await turn('maker', { audio: { mimeType, data } })).patch;
+    const length = p.measurements.find((m) => m.key === 'length');
+    const required = { price_120_usd: p.priceAmount === 120 && p.priceCurrency === 'USD', deposit_30_pct: p.depositPercent === 30 };
+    const info = {
+      delivery_dec_10: /^\d{4}-12-10$/.test(p.deliveryDateIso ?? ''),
+      length_44_in: length?.value === 44 && length.unit === 'in',
+      color_light_green: /light green/i.test(p.color?.buyer ?? ''),
+    };
+    console.log(`checks (required): ${JSON.stringify(required)}`);
+    console.log(`checks (info): ${JSON.stringify(info)}`);
+    if (Object.values(required).includes(false)) failed = true;
+  } catch (e) {
+    console.error(`audio turn failed: ${e instanceof Error ? e.message : e}`);
+    if (e instanceof AiUnavailableError) for (const a of e.attempts) console.error(`  ${a.model} ${a.outcome} ${a.ms} ms ${a.detail?.slice(0, 300) ?? ''}`);
+    failed = true;
+  }
+  console.log(failed ? '\nSMOKE FAILED' : '\nSMOKE OK');
+  // exitCode instead of process.exit(): exiting while the HTTP client closes its sockets can trip a libuv assertion on Windows.
+  process.exitCode = failed ? 1 : 0;
+}
+
 async function main(): Promise<void> {
+  if (audioArg) return audioMain(audioArg);
   let failed = false;
   let hindi: TurnResult | null = null;
   try {
-    hindi = await turn('maker', HINDI);
+    hindi = await turn('maker', { text: HINDI });
   } catch (e) {
     console.error(`maker turn failed: ${e instanceof Error ? e.message : e}`);
     failed = true;
@@ -68,13 +108,13 @@ async function main(): Promise<void> {
     if (Object.values(checks).includes(false)) failed = true;
   }
   try {
-    await turn('buyer', ENGLISH);
+    await turn('buyer', { text: ENGLISH });
   } catch (e) {
     console.error(`buyer turn failed: ${e instanceof Error ? e.message : e}`);
     failed = true;
   }
   console.log(failed ? '\nSMOKE FAILED' : '\nSMOKE OK');
-  process.exit(failed ? 1 : 0);
+  process.exitCode = failed ? 1 : 0;
 }
 
 void main();

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "hindi-order",
+    "file": "hindi-order.m4a",
+    "role": "maker",
+    "lang": "hi",
+    "label": {
+      "en": "Full order in Hindi (23 s): kurta, size, length, colour, price, deposit, date",
+      "hi": "पूरा ऑर्डर (23 सेकंड): कुर्ता, साइज़, लंबाई, रंग, कीमत, एडवांस, तारीख",
+      "es": "Pedido completo en hindi (23 s): kurta, talla, largo, color, precio, anticipo, fecha"
+    },
+    "kind": "voice"
+  },
+  {
+    "id": "segment-terms",
+    "file": "segment-terms.m4a",
+    "role": "maker",
+    "lang": "hi",
+    "label": {
+      "en": "Terms only in Hindi (10 s): colour, price, deposit, date",
+      "hi": "सिर्फ़ शर्तें (10 सेकंड): रंग, कीमत, एडवांस, तारीख",
+      "es": "Solo condiciones en hindi (10 s): color, precio, anticipo, fecha"
+    },
+    "kind": "voice"
+  }
+]

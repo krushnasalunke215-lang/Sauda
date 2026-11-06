@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { otherRole, type DealView, type Lang } from '../../../shared/types.js';
-import { ApiError, api } from '../api.js';
+import { depositPaid, otherRole, type DealView, type Lang, type Message, type PhotoKind, type SampleInfo } from '../../../shared/types.js';
+import { ApiError, api, upload } from '../api.js';
+import { playUrl, speak } from '../audio/speech.js';
 import { AgreementPanel } from '../components/AgreementPanel.js';
 import { ChatPanel } from '../components/ChatPanel.js';
 import { Composer } from '../components/Composer.js';
@@ -20,11 +21,72 @@ const PHASE_STYLE: Record<DealView['phase'], string> = {
   cancelled: 'bg-stone-200 text-stone-700',
 };
 
+type Sound = 'unset' | 'on' | 'off';
+const SOUND_KEY = 'sauda.autoplay';
+
+function readSound(): Sound {
+  try {
+    const v = localStorage.getItem(SOUND_KEY);
+    return v === 'on' || v === 'off' ? v : 'unset';
+  } catch {
+    return 'unset';
+  }
+}
+
+/**
+ * Auto-play: speaks the translation of each new message from the other side once it is interpreted.
+ * Browsers only allow sound after a user gesture, so it switches on with the first click and stays
+ * in localStorage; until then an "enable sound" chip shows.
+ */
+function useAutoPlay(view: DealView | null, say: (m: Message) => void) {
+  const [sound, setSoundState] = useState<Sound>(readSound);
+  const seen = useRef<Set<string> | null>(null);
+
+  const setSound = useCallback((s: Sound) => {
+    setSoundState(s);
+    try {
+      localStorage.setItem(SOUND_KEY, s);
+    } catch {
+      // private mode: the setting lasts for this page only
+    }
+  }, []);
+
+  useEffect(() => {
+    if (sound !== 'unset') return;
+    const on = () => setSound('on');
+    document.addEventListener('pointerdown', on, { once: true });
+    document.addEventListener('keydown', on, { once: true });
+    return () => {
+      document.removeEventListener('pointerdown', on);
+      document.removeEventListener('keydown', on);
+    };
+  }, [sound, setSound]);
+
+  useEffect(() => {
+    if (!view) return;
+    const fresh = view.messages.filter((m) => m.from === otherRole(view.role) && m.status === 'done' && m.translation?.text);
+    if (!seen.current) {
+      // Messages already interpreted when the page opened are history, not news.
+      seen.current = new Set(fresh.map((m) => m.id));
+      return;
+    }
+    for (const m of fresh) {
+      if (seen.current.has(m.id)) continue;
+      seen.current.add(m.id);
+      if (sound === 'on') say(m);
+    }
+  }, [view, sound, say]);
+
+  return { sound, setSound };
+}
+
 export function Room({ dealId, token }: { dealId: string; token: string }) {
   const [view, setView] = useState<DealView | null>(null);
   const [status, setStatus] = useState<SocketStatus>('connecting');
   const [highlight, setHighlight] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [samples, setSamples] = useState<SampleInfo[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   /** Keeps whichever snapshot is newer (socket pushes and HTTP responses can cross). */
@@ -40,9 +102,36 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
   }, [dealId, token, accept]);
 
   const lang: Lang = view ? view.parties[view.role].lang : 'en';
+  const role = view?.role;
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
+
+  useEffect(() => {
+    if (!role) return;
+    api<SampleInfo[]>('/api/samples')
+      .then((all) => setSamples(all.filter((s) => s.kind === 'voice' && s.role === role)))
+      .catch(() => setSamples([]));
+  }, [role]);
+
+  const mediaUrl = useCallback((file: string) => `/api/deals/${dealId}/media/${encodeURIComponent(file)}?t=${encodeURIComponent(token)}`, [dealId, token]);
+
+  /** Speaks a translation with a browser voice, or the server's TTS when the device has none. */
+  const say = useCallback(
+    async (m: Message) => {
+      const tr = m.translation;
+      if (!tr?.text) return;
+      setNotice(null);
+      try {
+        if (await speak(tr.text, tr.lang)) return;
+        await playUrl(`/api/deals/${dealId}/messages/${m.id}/tts?t=${encodeURIComponent(token)}`);
+      } catch {
+        setNotice(t(lang, 'speech.noVoice', { lang: t(lang, `langName.${tr.lang}`) }));
+      }
+    },
+    [dealId, token, lang],
+  );
+  const { sound, setSound } = useAutoPlay(view, say);
 
   const cite = useCallback((seq: number) => {
     document.getElementById(`msg-${seq}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -81,6 +170,20 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
   const me = view.parties[view.role];
   const other = view.parties[otherRole(view.role)];
   const inviteUrl = view.inviteUrl ? new URL(view.inviteUrl, window.location.origin).href : null;
+  // The buyer can add a reference photo until the invoice exists; the maker sends progress photos once the deposit is paid.
+  const photoKind: PhotoKind | null =
+    view.role === 'buyer' ? (view.invoice ? null : 'reference') : depositPaid(view) && view.phase !== 'cancelled' ? 'progress' : null;
+
+  /** Runs an upload or sample request and returns the new message id (errors show in the room). */
+  const startTurn = async (fn: () => Promise<{ messageId: string }>): Promise<string | null> => {
+    setError(null);
+    try {
+      return (await fn()).messageId;
+    } catch (e) {
+      setError(renderError(lang, e instanceof ApiError ? e.code : undefined));
+      return null;
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col" data-testid="room" data-role={view.role} data-lang={lang}>
@@ -96,6 +199,27 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
             {t(lang, `phase.${view.phase}`)}
           </span>
           {status !== 'connected' && <span className="text-xs text-amber-700">{t(lang, status === 'connecting' ? 'room.connecting' : 'room.reconnecting')}</span>}
+          {sound === 'unset' ? (
+            <button
+              type="button"
+              data-testid="enable-sound"
+              className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200"
+              onClick={() => setSound('on')}
+            >
+              🔈 {t(lang, 'sound.enable')}
+            </button>
+          ) : (
+            <button
+              type="button"
+              data-testid="sound-toggle"
+              data-state={sound}
+              aria-pressed={sound === 'on'}
+              className="rounded-full bg-stone-100 px-3 py-1 text-xs text-stone-700 ring-1 ring-stone-300 hover:bg-stone-200"
+              onClick={() => setSound(sound === 'on' ? 'off' : 'on')}
+            >
+              {sound === 'on' ? `🔊 ${t(lang, 'sound.on')}` : `🔇 ${t(lang, 'sound.off')}`}
+            </button>
+          )}
           {inviteUrl && (
             <div className="flex items-center gap-2 text-xs sm:ml-auto">
               <span className="text-stone-500">{t(lang, 'room.invite')}</span>
@@ -115,17 +239,35 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
             view={view}
             lang={lang}
             highlight={highlight}
-            onRetry={(id) => void run(() => api(`/api/deals/${dealId}/turns/${id}/retry`, { method: 'POST', token }))}
+            actions={{
+              onRetry: (id) => void run(() => api(`/api/deals/${dealId}/turns/${id}/retry`, { method: 'POST', token })),
+              mediaUrl,
+              onListen: (m) => void say(m),
+              onDecide: (mid, approve) => void run(() => api<DealView>(`/api/deals/${dealId}/photos/${mid}/decision`, { token, body: { approve } })),
+            }}
           />
           {error && (
             <p className="px-4 py-1 text-sm text-red-700" data-testid="room-error">
               {error}
             </p>
           )}
+          {notice && (
+            <p className="px-4 py-1 text-sm text-amber-800" data-testid="speech-notice">
+              {notice}
+            </p>
+          )}
           <Composer
             lang={lang}
             otherName={other.name}
+            messages={view.messages}
+            samples={samples}
+            photoKind={photoKind}
             onSend={(text) => run(() => api(`/api/deals/${dealId}/turns`, { token, body: { text } }))}
+            onVoice={(blob, contentType) => startTurn(() => upload(`/api/deals/${dealId}/turns`, { token, body: blob, contentType }))}
+            onSample={(id) => startTurn(() => api(`/api/deals/${dealId}/turns?sample=${encodeURIComponent(id)}`, { method: 'POST', token }))}
+            onPhoto={async (kind, jpeg) =>
+              (await startTurn(() => upload(`/api/deals/${dealId}/photos?kind=${kind}`, { token, body: jpeg, contentType: jpeg.type || 'image/jpeg' }))) !== null
+            }
           />
         </section>
         <aside className="flex flex-col gap-4 lg:h-[calc(100vh-7rem)] lg:overflow-y-auto">

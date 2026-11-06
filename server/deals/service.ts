@@ -1,6 +1,23 @@
-import { LANGS, ROLES, type CreateDealInput, type Deal, type EventParams, type Lang, type Message, type Role } from '../../shared/types.js';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import {
+  depositPaid,
+  LANGS,
+  ROLES,
+  type CreateDealInput,
+  type Deal,
+  type EventParams,
+  type Lang,
+  type MediaRef,
+  type Message,
+  type PhotoKind,
+  type Role,
+} from '../../shared/types.js';
 import { AiUnavailableError } from '../ai/gemini.js';
 import type { Interpreter, TurnInput, TurnResult } from '../ai/interpret.js';
+import { extFor, normalizeAudioMime, normalizeImageMime, type AudioMime, type ImageMime } from '../ai/media.js';
+import type { Speak } from '../ai/tts.js';
+import type { ImageInput, Vision } from '../ai/vision.js';
 import { canonicalHash, isLocked, missingRequired, patchDeal, validate } from '../domain/agreement.js';
 import { checkTextLimits } from '../domain/agreement-text.js';
 import { todayUtc } from '../domain/dates.js';
@@ -29,8 +46,19 @@ export interface ServiceDeps {
   store: DealStore;
   /** null when Gemini is not configured: turns then return 503. */
   interpret: Interpreter | null;
+  /** null when Gemini is not configured: photos then return 503. */
+  vision?: Vision | null;
+  /** Uploads live in <mediaDir>/<dealId>/<messageId>.<ext>. */
+  mediaDir: string;
+  /** Server text-to-speech fallback; null when not configured. */
+  speak?: Speak | null;
   now?: () => Date;
   log?: Logger;
+}
+
+export interface AudioInput {
+  mimeType: AudioMime;
+  data: Buffer;
 }
 
 export const MAX_TEXT_CHARS = 1000;
@@ -58,6 +86,7 @@ function findMessage(d: Deal, id: string): Message {
 /** Deal orchestration over the store and the interpreter. Gemini runs outside the per-deal lock. */
 export class DealService {
   private readonly inflight = new Set<Promise<void>>();
+  private readonly speaking = new Map<string, Promise<Buffer>>();
   private readonly now: () => Date;
 
   constructor(private readonly deps: ServiceDeps) {
@@ -98,23 +127,184 @@ export class DealService {
     return msg;
   }
 
-  /** Re-runs a failed turn of the caller's own. */
-  async retryTurn(dealId: string, role: Role, messageId: string): Promise<Message> {
+  /**
+   * Saves a spoken turn (an upload, a recording or a built-in sample) and interprets it in the
+   * background through the same pipeline as typed turns, with the audio sent inline.
+   */
+  async addVoiceTurn(dealId: string, role: Role, audio: AudioInput, opts: { sample?: string } = {}): Promise<Message> {
     if (!this.deps.interpret) throw new ServiceError(503, 'ai_not_configured');
-    let input!: TurnInput;
+    if (!audio.data.length) throw new ServiceError(400, 'empty_audio');
+    let msg!: Message;
+    await this.deps.store.update(dealId, async (d) => {
+      const id = `m${d.nextSeq}`;
+      const media = await this.saveMedia(dealId, id, extFor(audio.mimeType), audio.data, audio.mimeType);
+      msg = pushMessage(d, { from: role, kind: 'voice', status: 'pending', media, ...(opts.sample ? { sample: opts.sample } : {}) }, this.now());
+    });
+    this.track(this.interpretMessage(dealId, msg.id, role, { audio }));
+    return msg;
+  }
+
+  /**
+   * Saves a photo and has Gemini vision look at it in the background. A reference photo comes from the
+   * buyer before the invoice exists; a progress photo comes from the maker once the deposit is paid.
+   */
+  async addPhoto(dealId: string, role: Role, kind: PhotoKind, image: ImageInput): Promise<Message> {
+    if (!this.deps.vision) throw new ServiceError(503, 'ai_not_configured');
+    if (!image.data.length) throw new ServiceError(400, 'empty_image');
+    let msg!: Message;
+    await this.deps.store.update(dealId, async (d) => {
+      if (kind === 'reference') {
+        if (role !== 'buyer') throw new ServiceError(403, 'buyer_only');
+        if (d.invoice) throw new ServiceError(409, 'invoice_exists');
+      } else {
+        if (role !== 'maker') throw new ServiceError(403, 'maker_only');
+        if (!depositPaid(d)) throw new ServiceError(409, 'deposit_not_paid');
+      }
+      const id = `m${d.nextSeq}`;
+      const media = await this.saveMedia(dealId, id, extFor(image.mimeType), image.data, image.mimeType);
+      msg = pushMessage(d, { from: role, kind: 'photo', status: 'pending', media, photo: { kind } }, this.now());
+    });
+    this.track(this.viewPhoto(dealId, msg.id, kind, image));
+    return msg;
+  }
+
+  /** The buyer approves a progress photo (which the balance step requires) or asks for changes. */
+  async decidePhoto(dealId: string, role: Role, messageId: string, approve: boolean): Promise<Deal> {
+    return this.deps.store.update(dealId, (d) => {
+      if (role !== 'buyer') throw new ServiceError(403, 'buyer_only');
+      const m = findMessage(d, messageId);
+      if (m.kind !== 'photo' || m.photo?.kind !== 'progress' || m.status !== 'done') throw new ServiceError(409, 'not_progress_photo');
+      const now = this.now();
+      m.photo.decision = { approve, at: now.toISOString() };
+      if (approve) {
+        d.progressApproval = { messageId, at: now.toISOString() };
+        pushEvent(d, 'progress_approved', { seq: m.seq, by: role }, now);
+      } else {
+        if (d.progressApproval?.messageId === messageId) d.progressApproval = null;
+        pushEvent(d, 'progress_changes_requested', { seq: m.seq, by: role }, now);
+      }
+    });
+  }
+
+  /** Re-runs a failed turn or photo of the caller's own. */
+  async retryTurn(dealId: string, role: Role, messageId: string): Promise<Message> {
     let msg!: Message;
     await this.deps.store.update(dealId, (d) => {
       const m = findMessage(d, messageId);
       if (m.from !== role) throw new ServiceError(403, 'not_your_message');
       if (m.status !== 'failed') throw new ServiceError(409, 'not_failed');
-      if (m.kind !== 'text' || !m.original) throw new ServiceError(409, 'cannot_retry');
+      const retryable = (m.kind === 'text' && m.original) || ((m.kind === 'voice' || m.kind === 'photo') && m.media);
+      if (!retryable) throw new ServiceError(409, 'cannot_retry');
+      if (!(m.kind === 'photo' ? this.deps.vision : this.deps.interpret)) throw new ServiceError(503, 'ai_not_configured');
       m.status = 'pending';
       delete m.error;
-      input = { text: m.original.text };
-      msg = m;
+      msg = structuredClone(m);
     });
-    this.track(this.interpretMessage(dealId, messageId, role, input));
+    if (msg.kind === 'text') this.track(this.interpretMessage(dealId, messageId, role, { text: msg.original!.text }));
+    else this.track(this.retryMedia(dealId, msg));
     return msg;
+  }
+
+  /**
+   * The message's translation as speech (WAV), for listeners whose browser has no voice for the
+   * language. Synthesized once and cached next to the media as <messageId>.tts.wav.
+   */
+  async translationSpeech(deal: Deal, messageId: string): Promise<Buffer> {
+    const speak = this.deps.speak;
+    if (!speak) throw new ServiceError(503, 'tts_not_configured');
+    const m = findMessage(deal, messageId);
+    if (m.status !== 'done' || !m.translation?.text) throw new ServiceError(409, 'no_translation');
+    const file = path.join(this.deps.mediaDir, deal.id, `${m.id}.tts.wav`);
+    const cached = await readFile(file).catch(() => null);
+    if (cached) return cached;
+    const key = `${deal.id}/${m.id}`;
+    let job = this.speaking.get(key);
+    if (!job) {
+      const { text, lang } = m.translation;
+      job = (async () => {
+        let wav: Buffer;
+        try {
+          wav = await speak(text, lang);
+        } catch (e) {
+          this.deps.log?.warn({ dealId: deal.id, messageId, err: e instanceof Error ? e.message.slice(0, 200) : String(e) }, 'tts failed');
+          throw new ServiceError(502, 'tts_failed');
+        }
+        await mkdir(path.dirname(file), { recursive: true });
+        await writeFile(file, wav);
+        return wav;
+      })().finally(() => this.speaking.delete(key));
+      this.speaking.set(key, job);
+    }
+    return job;
+  }
+
+  /** The bytes of a stored upload. */
+  async readMedia(dealId: string, file: string): Promise<Buffer> {
+    return readFile(path.join(this.deps.mediaDir, dealId, file));
+  }
+
+  private async saveMedia(dealId: string, messageId: string, ext: string, data: Buffer, mimeType: string): Promise<MediaRef> {
+    const dir = path.join(this.deps.mediaDir, dealId);
+    await mkdir(dir, { recursive: true });
+    const file = `${messageId}.${ext}`;
+    await writeFile(path.join(dir, file), data);
+    return { file, mimeType, bytes: data.length };
+  }
+
+  private async retryMedia(dealId: string, m: Message): Promise<void> {
+    const media = m.media!;
+    let data: Buffer;
+    try {
+      data = await this.readMedia(dealId, media.file);
+    } catch {
+      await this.fail(dealId, m.id, 'media_missing');
+      return;
+    }
+    if (m.kind === 'photo') {
+      const mimeType = normalizeImageMime(media.mimeType);
+      if (mimeType && m.photo) return this.viewPhoto(dealId, m.id, m.photo.kind, { mimeType, data });
+    } else {
+      const mimeType = normalizeAudioMime(media.mimeType);
+      if (mimeType && m.from !== 'system') return this.interpretMessage(dealId, m.id, m.from, { audio: { mimeType, data } });
+    }
+    await this.fail(dealId, m.id, 'cannot_retry');
+  }
+
+  private async fail(dealId: string, messageId: string, error: string): Promise<void> {
+    await this.deps.store
+      .update(dealId, (d) => {
+        const m = findMessage(d, messageId);
+        m.status = 'failed';
+        m.error = error;
+      })
+      .catch(() => undefined);
+  }
+
+  /** Runs vision on a photo outside the lock, then stores the result on the message. */
+  private async viewPhoto(dealId: string, messageId: string, kind: PhotoKind, image: ImageInput): Promise<void> {
+    const { store } = this.deps;
+    try {
+      const deal = await store.update(dealId, (d) => {
+        findMessage(d, messageId).status = 'interpreting';
+      });
+      try {
+        const vision = this.deps.vision!;
+        const r = kind === 'reference' ? await vision.describeReference(deal, image) : await vision.checkProgress(deal, image);
+        this.deps.log?.info({ dealId, messageId, kind, ai: r.ai, attempts: r.attempts.map(({ model, ms, outcome }) => ({ model, ms, outcome })) }, 'photo viewed');
+        await store.update(dealId, (d) => {
+          const m = findMessage(d, messageId);
+          m.status = 'done';
+          m.ai = r.ai;
+          m.photo = 'description' in r ? { kind, description: r.description, details: r.details } : { kind, checks: r.checks, summary: r.summary };
+        });
+      } catch (e) {
+        const unavailable = e instanceof AiUnavailableError;
+        this.deps.log?.warn({ dealId, messageId, kind, ...(unavailable ? { attempts: e.attempts } : { err: e instanceof Error ? e.message : String(e) }) }, 'photo failed');
+        await this.fail(dealId, messageId, unavailable ? 'ai_unavailable' : 'interpret_failed');
+      }
+    } catch (e) {
+      this.deps.log?.warn({ dealId, messageId, err: e instanceof Error ? e.message : String(e) }, 'photo could not be saved');
+    }
   }
 
   async dismissQuestion(dealId: string, role: Role, questionId: string): Promise<Deal> {

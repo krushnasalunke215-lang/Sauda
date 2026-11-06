@@ -25,7 +25,7 @@ export type Interpreter = (deal: Deal, speaker: Role, input: TurnInput) => Promi
 const s = (v: string | null | undefined) => (typeof v === 'string' && v.trim() ? v.trim() : null);
 
 /** Both sides of a term; a missing side falls back to the other one, and an empty term becomes null. */
-function normBi(b: { maker: string; buyer: string } | null): Bi | null {
+export function normBi(b: { maker: string; buyer: string } | null): Bi | null {
   if (!b) return null;
   const maker = s(b.maker);
   const buyer = s(b.buyer);
