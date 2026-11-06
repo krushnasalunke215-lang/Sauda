@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Noto Sans", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
+}
+
+@keyframes cite-flash {
+  0% { box-shadow: 0 0 0 0 rgb(245 158 11 / 0.9); }
+  100% { box-shadow: 0 0 0 10px rgb(245 158 11 / 0); }
+}
+
+.cite-flash {
+  animation: cite-flash 0.9s ease-out 2;
+  outline: 2px solid rgb(245 158 11);
+}

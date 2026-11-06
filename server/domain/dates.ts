@@ -1,0 +1,27 @@
+import type { Lang } from '../../shared/types.js';
+
+const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES' };
+
+/** Today's date in UTC as YYYY-MM-DD. */
+export function todayUtc(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
+/** True for a real calendar date written as YYYY-MM-DD (2026-02-30 is false). */
+export function isValidIsoDate(s: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
+}
+
+/** ISO dates compare correctly as strings. */
+export function isNotPast(s: string, today: string): boolean {
+  return s >= today;
+}
+
+/** "December 10, 2026" / "10 दिसंबर 2026" / "10 de diciembre de 2026". */
+export function formatDate(iso: string, lang: Lang): string {
+  return new Intl.DateTimeFormat(LOCALES[lang], { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
+}
