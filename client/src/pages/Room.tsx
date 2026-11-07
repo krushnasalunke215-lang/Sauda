@@ -13,6 +13,7 @@ import { PaymentPanel } from '../components/PaymentPanel.js';
 import { ProposalsPanel } from '../components/ProposalCard.js';
 import { QuestionsPanel } from '../components/QuestionsPanel.js';
 import { renderError, t } from '../i18n.js';
+import { JudgeMode } from '../judge.js';
 import { subscribeDeal, type SocketStatus } from '../socket.js';
 import { ui, useCloseOnOutside } from '../ui.js';
 
@@ -125,7 +126,8 @@ function useAutoPlay(view: DealView | null, say: (m: Message) => void) {
   return { sound, setSound };
 }
 
-export function Room({ dealId, token }: { dealId: string; token: string }) {
+/** `judge` turns on judge mode (technical labels shown), see judge.ts. */
+export function Room({ dealId, token, judge = false }: { dealId: string; token: string; judge?: boolean }) {
   const [view, setView] = useState<DealView | null>(null);
   const [status, setStatus] = useState<SocketStatus>('connecting');
   const [highlight, setHighlight] = useState<number | null>(null);
@@ -235,7 +237,8 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
   const soundLabel = t(lang, sound === 'on' ? 'sound.on' : 'sound.off');
 
   return (
-    <div className="flex min-h-dvh flex-col" data-testid="room" data-role={view.role} data-lang={lang}>
+    <JudgeMode.Provider value={judge}>
+    <div className="flex min-h-dvh flex-col" data-testid="room" data-role={view.role} data-lang={lang} data-judge={judge ? 'on' : 'off'}>
       <header className="sticky top-0 z-20 h-14 shrink-0 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-full max-w-7xl items-center gap-3 px-4 sm:gap-4">
           <span className="text-base font-bold tracking-tight text-stone-900">{t(lang, 'app.name')}</span>
@@ -245,7 +248,8 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
               {me.name} <span className="font-normal text-stone-500">· {t(lang, `role.${view.role}`)}</span>
             </div>
             <div className="truncate text-xs text-stone-500">
-              {t(lang, 'room.with', { name: other.name })} · SAUDA-{view.id}
+              {t(lang, 'room.with', { name: other.name })}
+              {judge && ` · SAUDA-${view.id}`}
             </div>
           </div>
           <PhaseBadge phase={view.phase} lang={lang} />
@@ -378,5 +382,6 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
         </aside>
       </div>
     </div>
+    </JudgeMode.Provider>
   );
 }

@@ -9,16 +9,21 @@ export async function createDeal(request: APIRequestContext, input: Partial<Crea
   return (await res.json()) as CreateDealResult;
 }
 
-/** Opens the maker and the buyer in two separate browser contexts (two windows). */
+/**
+ * Opens the maker and the buyer in two separate browser contexts (two windows). `judge: true` opens
+ * both in judge mode, which shows the technical labels (model badges, message numbers, hashes).
+ */
 export async function openRoles(
   browser: Browser,
   deal: CreateDealResult,
   contextOptions: BrowserContextOptions = {},
+  opts: { judge?: boolean } = {},
 ): Promise<{ maker: Page; buyer: Page; close: () => Promise<void> }> {
   const contexts = [await browser.newContext(contextOptions), await browser.newContext(contextOptions)];
   const [maker, buyer] = await Promise.all(contexts.map((c) => c.newPage()));
-  await maker.goto(deal.maker.url);
-  await buyer.goto(deal.buyer.url);
+  const url = (u: string) => (opts.judge ? `${u}&judge=1` : u);
+  await maker.goto(url(deal.maker.url));
+  await buyer.goto(url(deal.buyer.url));
   await expect(maker.getByTestId('room')).toHaveAttribute('data-role', 'maker');
   await expect(buyer.getByTestId('room')).toHaveAttribute('data-role', 'buyer');
   return { maker, buyer, close: async () => void (await Promise.all(contexts.map((c) => c.close()))) };

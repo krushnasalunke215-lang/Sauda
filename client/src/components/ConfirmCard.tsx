@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { otherRole, type DealView, type Lang } from '../../../shared/types.js';
 import { t } from '../i18n.js';
+import { useJudge } from '../judge.js';
 import { ui } from '../ui.js';
 import { Icon } from './Icon.js';
 
 /** The confirm footer of the agreement card. The terms themselves are listed just above it. */
 export function ConfirmCard({ view, lang, onConfirm }: { view: DealView; lang: Lang; onConfirm: () => Promise<boolean> }) {
+  const judge = useJudge();
   const [busy, setBusy] = useState(false);
   const a = view.agreement;
   const me = view.confirmations[view.role];
@@ -59,9 +61,11 @@ export function ConfirmCard({ view, lang, onConfirm }: { view: DealView; lang: L
           </p>
         </>
       )}
-      <p className="mt-3 text-[11px] text-stone-400">
-        {t(lang, 'confirm.hash')} <code data-testid="confirm-hash" className="font-mono text-stone-500">{a.hash.slice(0, 12)}</code>
-      </p>
+      {judge && (
+        <p className="mt-3 text-[11px] text-stone-400">
+          {t(lang, 'confirm.hash')} <code data-testid="confirm-hash" className="font-mono text-stone-500">{a.hash.slice(0, 12)}</code>
+        </p>
+      )}
       {a.locked && (
         <p className="mt-1.5 flex items-center gap-1.5 text-xs text-stone-500">
           <Icon name="lock" size={13} />

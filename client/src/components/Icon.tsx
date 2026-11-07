@@ -37,6 +37,7 @@ const PATHS = {
     </>
   ),
   arrowUp: <path d="M12 19V5M6 11l6-6 6 6" />,
+  message: <path d="M5 5h14a1.5 1.5 0 0 1 1.5 1.5v8.5a1.5 1.5 0 0 1-1.5 1.5h-8.5L6 20v-3.5H5A1.5 1.5 0 0 1 3.5 15V6.5A1.5 1.5 0 0 1 5 5z" />,
   copy: (
     <>
       <rect x="8.5" y="8.5" width="11" height="11" rx="2" />

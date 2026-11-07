@@ -1,20 +1,28 @@
 import type { ReactNode } from 'react';
 import type { DealView, Lang } from '../../../shared/types.js';
 import { renderIssue, t } from '../i18n.js';
+import { useJudge } from '../judge.js';
 import { ui } from '../ui.js';
 import { Icon } from './Icon.js';
 
+/**
+ * Links a term to the message it came from: a click scrolls to that message and highlights it.
+ * The normal view shows a small message icon; judge mode shows the message number (#seq).
+ */
 export function CiteChip({ seq, lang, onCite }: { seq: number; lang: Lang; onCite: (seq: number) => void }) {
+  const judge = useJudge();
+  const label = t(lang, 'agreement.cite');
   return (
     <button
       type="button"
       data-testid="citation"
       data-seq={seq}
-      title={t(lang, 'agreement.cite')}
+      title={label}
+      aria-label={label}
       onClick={() => onCite(seq)}
-      className="shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[11px] text-stone-400 transition-colors hover:bg-amber-50 hover:text-amber-800"
+      className={`shrink-0 rounded-md text-stone-400 transition-colors hover:bg-amber-50 hover:text-amber-800 ${judge ? 'px-1.5 py-0.5 font-mono text-[11px]' : 'p-1 text-stone-300'}`}
     >
-      #{seq}
+      {judge ? `#${seq}` : <Icon name="message" size={14} />}
     </button>
   );
 }

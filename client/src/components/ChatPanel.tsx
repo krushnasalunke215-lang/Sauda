@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { otherRole, type Bi, type DealView, type Lang, type Message, type Role } from '../../../shared/types.js';
 import { modelBadge, renderError, renderEvent, t, tMaybe } from '../i18n.js';
+import { useJudge } from '../judge.js';
 import { ui } from '../ui.js';
 import { Icon, type IconName } from './Icon.js';
 
@@ -143,6 +144,7 @@ const MILESTONES = new Set(['agreement_confirmed', 'invoice_created', 'deposit_r
 const ALERTS = new Set(['invoice_text_changed', 'invoice_cancelled', 'terms_changed', 'progress_changes_requested']);
 
 function SystemLine({ m, view, lang, ring }: { m: Message; view: DealView; lang: Lang; ring: string }) {
+  const judge = useJudge();
   const type = m.event?.type ?? '';
   const tone = MILESTONES.has(type) ? 'bg-emerald-50 text-emerald-800' : ALERTS.has(type) ? 'bg-amber-50 text-amber-900' : 'text-stone-500';
   return (
@@ -155,13 +157,14 @@ function SystemLine({ m, view, lang, ring }: { m: Message; view: DealView; lang:
         className={`inline-flex max-w-md items-start gap-1.5 rounded-xl px-3 py-1.5 text-center text-xs leading-relaxed ${tone} ${ring}`}
       >
         {MILESTONES.has(type) && <Icon name="checkCircle" size={14} className="mt-px" />}
-        <span>{m.event ? renderEvent(lang, m.event, view.parties) : ''}</span>
+        <span>{m.event ? renderEvent(lang, m.event, view.parties, judge) : ''}</span>
       </div>
     </div>
   );
 }
 
 function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealView; lang: Lang; highlight: boolean; actions: ChatActions }) {
+  const judge = useJudge();
   const ring = highlight ? 'cite-flash' : '';
   if (m.from === 'system') return <SystemLine m={m} view={view} lang={lang} ring={ring} />;
   const from: Role = m.from;
@@ -220,24 +223,29 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
             {tMaybe(lang, `warning.${w}`, {}, w)}
           </p>
         ))}
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-stone-400">
-          {voice && <OriginalAudio url={actions.mediaUrl(m.media!.file)} lang={lang} />}
-          {listen && (
-            <button type="button" data-testid="listen" title={t(lang, 'voice.listen')} className={ui.btnBubble} onClick={() => actions.onListen(m)}>
-              <Icon name="volume" size={12} />
-              {t(lang, 'voice.listen')}
-            </button>
-          )}
-          {m.sample && (
-            <span data-testid="sample-tag" className="text-amber-700">
-              {t(lang, 'voice.sampleTag')}
-            </span>
-          )}
-          <span className="ml-auto flex items-center gap-2">
-            {m.ai && <span data-testid="model-badge">{modelBadge(lang, m.ai)}</span>}
-            <span className="font-mono">#{m.seq}</span>
-          </span>
-        </div>
+        {(voice || listen || m.sample || judge) && (
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-stone-400">
+            {voice && <OriginalAudio url={actions.mediaUrl(m.media!.file)} lang={lang} />}
+            {listen && (
+              <button type="button" data-testid="listen" title={t(lang, 'voice.listen')} className={ui.btnBubble} onClick={() => actions.onListen(m)}>
+                <Icon name="volume" size={12} />
+                {t(lang, 'voice.listen')}
+              </button>
+            )}
+            {m.sample && (
+              <span data-testid="sample-tag" className="text-amber-700">
+                {t(lang, 'voice.sampleTag')}
+              </span>
+            )}
+            {/* Judge mode only: which model answered, how fast, and the message number. */}
+            {judge && (
+              <span className="ml-auto flex items-center gap-2">
+                {m.ai && <span data-testid="model-badge">{modelBadge(lang, m.ai)}</span>}
+                <span className="font-mono">#{m.seq}</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

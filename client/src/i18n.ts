@@ -102,6 +102,7 @@ const en = {
   'event.deal_created': '{maker} opened a deal room with {buyer}.',
   'event.confirmed': '{name} confirmed the agreement.',
   'event.agreement_confirmed': 'Both sides confirmed the same agreement ({hash}…).',
+  'event.agreement_confirmed.plain': 'Both sides confirmed the same agreement.',
   'event.terms_changed': 'The terms changed after a confirmation, so both sides need to confirm again.',
 
   'warning.agreement_locked': 'The agreement is locked; this message did not change it.',
@@ -184,7 +185,9 @@ const en = {
   'photo.changesRequested': '{name} asked for changes.',
 
   'event.progress_approved': '{name} approved the progress photo (#{seq}).',
+  'event.progress_approved.plain': '{name} approved the progress photo.',
   'event.progress_changes_requested': '{name} asked for changes to the progress photo (#{seq}).',
+  'event.progress_changes_requested.plain': '{name} asked for changes to the progress photo.',
 
   'event.invoice_created': 'PayPal invoice {number} created: {total}, deposit {deposit}.',
   'event.deposit_received': 'Deposit received: {amount} ({due} still due).',
@@ -246,7 +249,9 @@ const en = {
   'proposal.tool.add_tracking': 'Add tracking to the PayPal payments',
   'proposal.tool.send_reminder': 'Send a PayPal payment reminder',
   'proposal.reason.both_confirmed': 'Both sides confirmed agreement {hash}…',
+  'proposal.reason.both_confirmed.plain': 'Both sides confirmed the agreement',
   'proposal.reason.maker_said': 'From your message #{seq}',
+  'proposal.reason.maker_said.plain': 'From your message',
   'proposal.reason.manual': 'Added by hand',
   'proposal.args.create_invoice': 'Total {total}, deposit {deposit} as the minimum payment, the bilingual agreement in the invoice note.',
   'proposal.args.add_tracking': '{carrier} · {number}',
@@ -421,6 +426,7 @@ const hi: Dict = {
   'event.deal_created': '{maker} ने {buyer} के साथ सौदे का कमरा खोला।',
   'event.confirmed': '{name} ने समझौता पक्का किया।',
   'event.agreement_confirmed': 'दोनों तरफ़ ने एक ही समझौता पक्का किया ({hash}…)।',
+  'event.agreement_confirmed.plain': 'दोनों तरफ़ ने एक ही समझौता पक्का किया।',
   'event.terms_changed': 'पक्का करने के बाद शर्तें बदल गईं, इसलिए दोनों को फिर से पक्का करना होगा।',
 
   'warning.agreement_locked': 'समझौता बंद है; इस संदेश से वह नहीं बदला।',
@@ -503,7 +509,9 @@ const hi: Dict = {
   'photo.changesRequested': '{name} ने बदलाव माँगे।',
 
   'event.progress_approved': '{name} ने काम की फ़ोटो (#{seq}) मंज़ूर की।',
+  'event.progress_approved.plain': '{name} ने काम की फ़ोटो मंज़ूर की।',
   'event.progress_changes_requested': '{name} ने काम की फ़ोटो (#{seq}) में बदलाव माँगे।',
+  'event.progress_changes_requested.plain': '{name} ने काम की फ़ोटो में बदलाव माँगे।',
 
   'event.invoice_created': 'PayPal इनवॉइस {number} बन गया: {total}, एडवांस {deposit}।',
   'event.deposit_received': 'एडवांस मिल गया: {amount} (अभी {due} बाकी)।',
@@ -565,7 +573,9 @@ const hi: Dict = {
   'proposal.tool.add_tracking': 'PayPal भुगतानों में ट्रैकिंग जोड़ें',
   'proposal.tool.send_reminder': 'PayPal से भुगतान की याद भेजें',
   'proposal.reason.both_confirmed': 'दोनों ने समझौता {hash}… पक्का किया',
+  'proposal.reason.both_confirmed.plain': 'दोनों ने समझौता पक्का किया',
   'proposal.reason.maker_said': 'आपके संदेश #{seq} से',
+  'proposal.reason.maker_said.plain': 'आपके संदेश से',
   'proposal.reason.manual': 'हाथ से जोड़ा गया',
   'proposal.args.create_invoice': 'कुल {total}, कम से कम भुगतान {deposit} एडवांस, इनवॉइस नोट में दोनों भाषाओं में समझौता।',
   'proposal.args.add_tracking': '{carrier} · {number}',
@@ -737,6 +747,7 @@ const es: Dict = {
   'event.deal_created': '{maker} abrió una sala de trato con {buyer}.',
   'event.confirmed': '{name} confirmó el acuerdo.',
   'event.agreement_confirmed': 'Ambas partes confirmaron el mismo acuerdo ({hash}…).',
+  'event.agreement_confirmed.plain': 'Ambas partes confirmaron el mismo acuerdo.',
   'event.terms_changed': 'Las condiciones cambiaron después de una confirmación, así que ambas partes deben confirmar de nuevo.',
 
   'warning.agreement_locked': 'El acuerdo está bloqueado; este mensaje no lo cambió.',
@@ -819,7 +830,9 @@ const es: Dict = {
   'photo.changesRequested': '{name} pidió cambios.',
 
   'event.progress_approved': '{name} aprobó la foto de avance (#{seq}).',
+  'event.progress_approved.plain': '{name} aprobó la foto de avance.',
   'event.progress_changes_requested': '{name} pidió cambios en la foto de avance (#{seq}).',
+  'event.progress_changes_requested.plain': '{name} pidió cambios en la foto de avance.',
 
   'event.invoice_created': 'Factura de PayPal {number} creada: {total}, anticipo {deposit}.',
   'event.deposit_received': 'Anticipo recibido: {amount} (quedan {due}).',
@@ -881,7 +894,9 @@ const es: Dict = {
   'proposal.tool.add_tracking': 'Añadir seguimiento a los pagos de PayPal',
   'proposal.tool.send_reminder': 'Enviar un recordatorio de pago de PayPal',
   'proposal.reason.both_confirmed': 'Ambas partes confirmaron el acuerdo {hash}…',
+  'proposal.reason.both_confirmed.plain': 'Ambas partes confirmaron el acuerdo',
   'proposal.reason.maker_said': 'De tu mensaje #{seq}',
+  'proposal.reason.maker_said.plain': 'De tu mensaje',
   'proposal.reason.manual': 'Añadida a mano',
   'proposal.args.create_invoice': 'Total {total}, anticipo {deposit} como pago mínimo, el acuerdo bilingüe en la nota de la factura.',
   'proposal.args.add_tracking': '{carrier} · {number}',
@@ -965,14 +980,22 @@ export function tMaybe(lang: Lang, key: string, params: Params = {}, fallback = 
   return key in en ? t(lang, key as Key, params) : fallback;
 }
 
-/** A system event in the viewer's language. Role params are shown as the party's name. */
-export function renderEvent(lang: Lang, ev: SystemEvent, parties: Record<Role, Party>): string {
+/**
+ * Like tMaybe, but outside judge mode a key with a `.plain` twin (the same text without hashes or
+ * message numbers) uses the twin. See judge.ts.
+ */
+export function tView(lang: Lang, key: string, params: Params, judge: boolean, fallback = key): string {
+  return tMaybe(lang, !judge && `${key}.plain` in en ? `${key}.plain` : key, params, fallback);
+}
+
+/** A system event in the viewer's language. Role params are shown as the party's name. Hashes and message numbers only in judge mode. */
+export function renderEvent(lang: Lang, ev: SystemEvent, parties: Record<Role, Party>, judge = false): string {
   const p: Params = { ...ev.params };
   for (const k of ['role', 'by']) {
     const r = ev.params[k];
     if (r === 'maker' || r === 'buyer') p.name = parties[r].name;
   }
-  return tMaybe(lang, `event.${ev.type}`, p, ev.type);
+  return tView(lang, `event.${ev.type}`, p, judge, ev.type);
 }
 
 export function renderIssue(lang: Lang, issue: AgreementIssue): string {

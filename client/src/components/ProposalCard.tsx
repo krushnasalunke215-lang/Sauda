@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CARRIERS, type DealView, type Lang, type Proposal } from '../../../shared/types.js';
-import { t, tMaybe } from '../i18n.js';
+import { t, tMaybe, tView } from '../i18n.js';
+import { useJudge } from '../judge.js';
 import { ui } from '../ui.js';
 import { Icon } from './Icon.js';
 
@@ -50,6 +51,7 @@ function ProposalLine({ p, lang }: { p: Proposal; lang: Lang }) {
 
 /** One open agent proposal: the maker approves or rejects it; the buyer sees its state. */
 export function ProposalCard({ p, view, lang, actions }: { p: Proposal; view: DealView; lang: Lang; actions: ProposalActions }) {
+  const judge = useJudge();
   const maker = view.role === 'maker';
   const open = p.status === 'pending' || p.status === 'failed';
   const [carrier, setCarrier] = useState(typeof p.args.carrier === 'string' ? p.args.carrier : '');
@@ -60,7 +62,7 @@ export function ProposalCard({ p, view, lang, actions }: { p: Proposal; view: De
     setNumber(typeof p.args.trackingNumber === 'string' ? p.args.trackingNumber : '');
   }, [p.args.carrier, p.args.trackingNumber]);
 
-  const reason = p.reason ? tMaybe(lang, `proposal.reason.${p.reason.code}`, p.reason.params) : '';
+  const reason = p.reason ? tView(lang, `proposal.reason.${p.reason.code}`, p.reason.params, judge) : '';
   const r = p.result ?? {};
   const editable = maker && open && p.tool === 'add_tracking';
 
@@ -104,7 +106,7 @@ export function ProposalCard({ p, view, lang, actions }: { p: Proposal; view: De
       {p.status === 'failed' && p.error && (
         <p data-testid="proposal-error" data-error={p.error} className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
           {tMaybe(lang, `proposal.error.${p.error}`, { name: String(r.name ?? ''), message: String(r.message ?? '') }, tMaybe(lang, `error.${p.error}`, {}, p.error))}
-          {typeof r.debugId === 'string' && r.debugId && (
+          {judge && typeof r.debugId === 'string' && r.debugId && (
             <span className="ml-1 font-mono text-[10px] text-red-700">
               ({t(lang, 'timeline.debug')} {r.debugId})
             </span>

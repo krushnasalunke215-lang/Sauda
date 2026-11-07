@@ -1,13 +1,14 @@
 import { Home } from './pages/Home.js';
 import { Room } from './pages/Room.js';
 
-/** A tiny pathname router: "/" is the home page and "/r/:id?t=TOKEN" is a deal room. */
+/** A tiny pathname router: "/" is the home page and "/r/:id?t=TOKEN[&judge=1]" is a deal room. */
 export function App() {
   const path = window.location.pathname;
   if (path === '/' || path === '') return <Home />;
   const room = /^\/r\/([0-9A-Z]{8})\/?$/.exec(path);
-  const token = new URLSearchParams(window.location.search).get('t');
-  if (room && token) return <Room dealId={room[1]} token={token} />;
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('t');
+  if (room && token) return <Room dealId={room[1]} token={token} judge={params.get('judge') === '1'} />;
   return (
     <main className="mx-auto max-w-md px-4 py-24 text-center">
       <h1 className="text-2xl font-bold tracking-tight text-stone-900">Sauda</h1>

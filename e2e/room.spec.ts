@@ -8,7 +8,8 @@ const DEVANAGARI = /[\u0900-\u097F]/;
 
 test('maker (Hindi) and buyer (English) negotiate by text and both confirm the same agreement', async ({ browser, request }) => {
   const deal = await createDeal(request);
-  const { maker, buyer, close } = await openRoles(browser, deal);
+  // Judge mode: this test reads the model badge and the agreement fingerprint, which the normal view hides.
+  const { maker, buyer, close } = await openRoles(browser, deal, {}, { judge: true });
 
   await sendText(buyer, BUYER_TEXT);
   // The maker reads the buyer's English message in Hindi, with the original underneath.
