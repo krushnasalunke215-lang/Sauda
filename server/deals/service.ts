@@ -13,6 +13,7 @@ import {
   type PhotoKind,
   type Role,
 } from '../../shared/types.js';
+import { markStale, proposeFromIntent, proposeInvoice } from '../agent/proposals.js';
 import { AiUnavailableError } from '../ai/gemini.js';
 import type { Interpreter, TurnInput, TurnResult } from '../ai/interpret.js';
 import { extFor, normalizeAudioMime, normalizeImageMime, type AudioMime, type ImageMime } from '../ai/media.js';
@@ -328,8 +329,11 @@ export class DealService {
       if (d.confirmations[role]?.hash === current) return;
       d.confirmations[role] = { hash: current, at: now.toISOString() };
       pushEvent(d, 'confirmed', { role }, now);
-      if (bothConfirmed(d, current)) pushEvent(d, 'agreement_confirmed', { hash: current.slice(0, 12) }, now);
-      // FEAT-003 adds the create_invoice proposal here.
+      if (bothConfirmed(d, current)) {
+        pushEvent(d, 'agreement_confirmed', { hash: current.slice(0, 12) }, now);
+        // The agent proposes the invoice; the maker approves it and the guards are checked again then.
+        proposeInvoice(d, now);
+      }
     });
   }
 
@@ -391,7 +395,12 @@ export class DealService {
       d.questions = resolveByPatch(d.questions, set, m.id).questions;
       d.questions = addQuestions(d.questions, r.questions, m.id, now).questions;
     }
+    const after = canonicalHash(d);
     // A confirmation counts only for the hash it was given on; tell both sides when terms moved under one.
-    if (confirmedBefore && canonicalHash(d) !== before) pushEvent(d, 'terms_changed', { by: m.from as Role }, now);
+    if (confirmedBefore && after !== before) pushEvent(d, 'terms_changed', { by: m.from as Role }, now);
+    if (after !== before) markStale(d, now, after);
+    // The maker's spoken "shipped with DHL, tracking …" or "remind the buyer" becomes a proposal card.
+    const intentWarning = proposeFromIntent(d, m, now);
+    if (intentWarning) m.warnings = [...(m.warnings ?? []), intentWarning];
   }
 }

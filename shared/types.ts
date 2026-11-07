@@ -214,28 +214,65 @@ export interface InvoiceSnapshot {
   textMatches: boolean;
 }
 
-export type ProposalTool = 'create_invoice' | 'add_tracking' | 'send_reminder';
+/** True once the invoice is paid in full (PayPal checkout or recorded payments). */
+export function fullyPaid(d: { invoice: InvoiceSnapshot | null }): boolean {
+  const inv = d.invoice;
+  if (!inv) return false;
+  return inv.status === 'PAID' || inv.status === 'MARKED_AS_PAID' || (inv.totalCents > 0 && inv.paidCents >= inv.totalCents);
+}
 
+export type ProposalTool = 'create_invoice' | 'add_tracking' | 'send_reminder';
+export type ProposalStatus = 'pending' | 'running' | 'done' | 'failed' | 'rejected' | 'stale';
+
+/** Why the proposal exists, rendered in the viewer's language (i18n `proposal.reason.*`). */
+export interface ProposalReason {
+  code: 'both_confirmed' | 'maker_said' | 'manual';
+  params: EventParams;
+}
+
+/** An action the agent proposes; code checks the guards, the maker approves, PayPal executes. */
 export interface Proposal {
   id: string;
   tool: ProposalTool;
   args: Record<string, unknown>;
-  status: 'pending' | 'running' | 'done' | 'failed' | 'rejected' | 'stale';
+  status: ProposalStatus;
+  reason?: ProposalReason;
+  /** On success: what PayPal returned (ids). On failure: {name, message, debugId, httpStatus}. */
   result?: Record<string, unknown>;
+  /** Error code when status is 'failed' (i18n `proposal.error.*`). */
   error?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export type PaymentKind = 'deposit' | 'balance' | 'full' | 'other';
 
 export type TimelineEntry = { id: string; at: string } & (
-  | { type: 'paypal_call'; label: string; method: string; path: string; status: number; debugId: string | null; ms: number }
+  | {
+      type: 'paypal_call';
+      label: string;
+      method: string;
+      path: string;
+      /** null when the HTTP status is not known (the Agent Toolkit does not expose it on success). */
+      status: number | null;
+      debugId: string | null;
+      ms: number;
+      error?: string;
+    }
   | { type: 'webhook'; eventId: string; eventType: string; verified: boolean; invoiceStatus: string | null }
-  | { type: 'poll_change'; from: string | null; to: string; paidCents: number; source: string }
+  | { type: 'poll_change'; from: string | null; to: string; paidCents: number; source: string; debugId?: string | null }
   | { type: 'payment'; kind: PaymentKind; cents: number; txnId: string; method: string }
   | { type: 'tracking'; carrier: string; trackingNumber: string; status: string; txnIds: string[] }
   | { type: 'alert'; code: string; params: EventParams }
 );
+
+/** A timeline entry before the store gives it an id and a time. */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+export type TimelineInput = DistributiveOmit<TimelineEntry, 'id' | 'at'>;
+
+/** The carriers Sauda offers, as PayPal Tracking API carrier codes. */
+export const CARRIERS = ['DHL', 'FEDEX', 'UPS', 'USPS', 'IND_DELHIVERY', 'IND_BLUEDART', 'DTDC_IN'] as const;
+export type CarrierCode = (typeof CARRIERS)[number];
 
 export interface TrackingInfo {
   carrier: string;
@@ -264,6 +301,8 @@ export interface Deal {
   questions: Question[];
   confirmations: Partial<Record<Role, Confirmation>>;
   invoice: InvoiceSnapshot | null;
+  /** What the invoice text must stay equal to: SHA-256 of the note sent to PayPal, and the reference. */
+  invoiceText?: { noteSha256: string; reference: string } | null;
   proposals: Proposal[];
   timeline: TimelineEntry[];
   tracking: TrackingInfo | null;

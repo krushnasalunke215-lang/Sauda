@@ -7,6 +7,9 @@ import { ChatPanel } from '../components/ChatPanel.js';
 import { Composer } from '../components/Composer.js';
 import { ConfirmCard } from '../components/ConfirmCard.js';
 import { CopyButton } from '../components/CopyButton.js';
+import { MoneyTimeline } from '../components/MoneyTimeline.js';
+import { PaymentPanel } from '../components/PaymentPanel.js';
+import { ProposalsPanel } from '../components/ProposalCard.js';
 import { QuestionsPanel } from '../components/QuestionsPanel.js';
 import { renderError, t } from '../i18n.js';
 import { subscribeDeal, type SocketStatus } from '../socket.js';
@@ -87,6 +90,7 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [samples, setSamples] = useState<SampleInfo[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [tab, setTab] = useState<'deal' | 'timeline'>('deal');
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   /** Keeps whichever snapshot is newer (socket pushes and HTTP responses can cross). */
@@ -271,18 +275,57 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
           />
         </section>
         <aside className="flex flex-col gap-4 lg:h-[calc(100vh-7rem)] lg:overflow-y-auto">
-          <AgreementPanel view={view} lang={lang} onCite={cite} />
-          <QuestionsPanel
-            view={view}
-            lang={lang}
-            onCite={cite}
-            onDismiss={(qid) => void run(() => api<DealView>(`/api/deals/${dealId}/questions/${qid}/dismiss`, { method: 'POST', token }))}
-          />
-          <ConfirmCard
-            view={view}
-            lang={lang}
-            onConfirm={() => run(() => api<DealView>(`/api/deals/${dealId}/confirm`, { token, body: { hash: view.agreement.hash } }))}
-          />
+          <div className="flex gap-1 rounded-lg bg-stone-200/60 p-1 text-sm" role="tablist">
+            {(['deal', 'timeline'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
+                data-testid={`tab-${k}`}
+                onClick={() => setTab(k)}
+                className={`flex-1 rounded-md px-3 py-1 ${tab === k ? 'bg-white font-semibold shadow-sm' : 'text-stone-600 hover:bg-white/60'}`}
+              >
+                {t(lang, `tab.${k}`)}
+                {k === 'timeline' && view.timeline.length > 0 && <span className="ml-1 text-xs text-stone-500">({view.timeline.length})</span>}
+              </button>
+            ))}
+          </div>
+          {tab === 'timeline' ? (
+            <MoneyTimeline view={view} lang={lang} />
+          ) : (
+            <>
+              <PaymentPanel
+                view={view}
+                lang={lang}
+                onRefresh={() => run(() => api<DealView>(`/api/deals/${dealId}/refresh-payment`, { method: 'POST', token }))}
+                onRemind={() => run(() => api(`/api/deals/${dealId}/proposals`, { token, body: { tool: 'send_reminder' } }))}
+              />
+              <ProposalsPanel
+                view={view}
+                lang={lang}
+                actions={{
+                  onApprove: (pid, args) => run(() => api(`/api/deals/${dealId}/proposals/${pid}/approve`, { token, body: args ? { args } : {} })),
+                  onReject: (pid) => run(() => api<DealView>(`/api/deals/${dealId}/proposals/${pid}/reject`, { method: 'POST', token })),
+                }}
+                onProposeTracking={(carrier, trackingNumber) =>
+                  run(() => api(`/api/deals/${dealId}/proposals`, { token, body: { tool: 'add_tracking', args: { carrier, trackingNumber } } }))
+                }
+              />
+              <AgreementPanel view={view} lang={lang} onCite={cite} />
+              <QuestionsPanel
+                view={view}
+                lang={lang}
+                onCite={cite}
+                onDismiss={(qid) => void run(() => api<DealView>(`/api/deals/${dealId}/questions/${qid}/dismiss`, { method: 'POST', token }))}
+              />
+              <ConfirmCard
+                view={view}
+                lang={lang}
+                onConfirm={() => run(() => api<DealView>(`/api/deals/${dealId}/confirm`, { token, body: { hash: view.agreement.hash } }))}
+              />
+            </>
+          )}
         </aside>
       </div>
     </div>

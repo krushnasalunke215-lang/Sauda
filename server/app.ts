@@ -2,16 +2,24 @@ import { existsSync } from 'node:fs';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import path from 'node:path';
+import { ApprovalService, createPayPalOps } from './agent/approvals.js';
+import type { PayPalOps } from './agent/proposals.js';
 import type { Interpreter } from './ai/interpret.js';
 import { MAX_AUDIO_BYTES, MAX_IMAGE_BYTES } from './ai/media.js';
 import type { Speak } from './ai/tts.js';
 import type { Vision } from './ai/vision.js';
-import { ROOT_DIR, type Config } from './config.js';
-import { DealService, ServiceError } from './deals/service.js';
+import { paypalConfigured, ROOT_DIR, type Config } from './config.js';
+import { DealService, ServiceError, type Logger } from './deals/service.js';
 import { DealNotFoundError, type DealStore } from './deals/store.js';
+import { PayPalClient } from './paypal/client.js';
+import { InvoiceSync } from './paypal/sync.js';
+import { TimelineRecorder } from './paypal/timeline.js';
+import type { ToolkitFactory } from './paypal/toolkit.js';
+import { WebhookManager } from './paypal/webhooks.js';
 import { dealRoutes } from './routes/deals.js';
 import { healthRoutes } from './routes/health.js';
 import { mediaRoutes } from './routes/media.js';
+import { paypalRoutes } from './routes/paypal.js';
 import { photoRoutes } from './routes/photos.js';
 import { SampleLibrary, sampleRoutes } from './routes/samples.js';
 
@@ -27,6 +35,19 @@ export interface AppDeps {
   staticDir?: string | null;
   logger?: FastifyServerOptions['logger'];
   now?: () => Date;
+  /**
+   * PayPal overrides for tests: a fake fetch for the sandbox client, fake side effects, a fake
+   * Agent Toolkit. null turns PayPal off. By default the client is built from config.paypal.
+   */
+  paypal?: { fetch?: typeof fetch; ops?: Partial<PayPalOps>; toolkit?: ToolkitFactory } | null;
+}
+
+export interface Payments {
+  client: PayPalClient | null;
+  recorder: TimelineRecorder;
+  sync: InvoiceSync;
+  approvals: ApprovalService;
+  webhooks: WebhookManager;
 }
 
 /** Removes the access token from URLs (/r/:id?t=TOKEN) before they are logged. */
@@ -41,7 +62,25 @@ export const LOGGER: FastifyServerOptions['logger'] = {
   },
 };
 
-export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; service: DealService }> {
+function buildPayments(deps: AppDeps, log: Logger): Payments {
+  const { config, store } = deps;
+  const p = config.paypal;
+  const creds = deps.paypal !== null && paypalConfigured(config) ? { clientId: p.clientId!, clientSecret: p.clientSecret! } : null;
+  const recorder = new TimelineRecorder(store, log, deps.now);
+  const client = creds ? new PayPalClient(creds, { onCall: recorder.onCall, fetch: deps.paypal?.fetch }) : null;
+  const real = client && creds ? createPayPalOps(client, { creds, merchantEmail: p.merchantEmail!, buyerEmail: p.buyerEmail! }, deps.paypal?.toolkit) : null;
+  const fake = deps.paypal?.ops;
+  const ops = real ? { ...real, ...fake } : fake?.createInvoice && fake.addTracking && fake.sendReminder ? (fake as PayPalOps) : null;
+  return {
+    client,
+    recorder,
+    sync: new InvoiceSync({ store, client, now: deps.now, log }),
+    approvals: new ApprovalService({ store, ops, now: deps.now, log }),
+    webhooks: new WebhookManager(client, { webhookId: p.webhookId, log, now: deps.now }),
+  };
+}
+
+export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; service: DealService; payments: Payments }> {
   const app = Fastify({ logger: deps.logger ?? LOGGER, trustProxy: true, bodyLimit: 64 * 1024 });
   const service = new DealService({
     store: deps.store,
@@ -74,11 +113,14 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     return reply.code(500).send({ error: 'internal' });
   });
 
-  healthRoutes(app, deps.config);
+  const payments = buildPayments(deps, app.log);
+
+  healthRoutes(app, deps.config, () => payments.webhooks.status());
   dealRoutes(app, { store: deps.store, service, samples, publicBaseUrl: deps.config.publicBaseUrl });
   mediaRoutes(app, { store: deps.store, service });
   photoRoutes(app, { store: deps.store, service, publicBaseUrl: deps.config.publicBaseUrl });
   sampleRoutes(app, samples);
+  paypalRoutes(app, { ...payments, store: deps.store, publicBaseUrl: deps.config.publicBaseUrl, log: app.log, now: deps.now });
 
   const hasClient = Boolean(deps.staticDir && existsSync(deps.staticDir));
   if (hasClient) await app.register(fastifyStatic, { root: deps.staticDir!, index: ['index.html'] });
@@ -90,5 +132,5 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     return reply.code(404).send({ error: 'not_found' });
   });
 
-  return { app, service };
+  return { app, service, payments };
 }

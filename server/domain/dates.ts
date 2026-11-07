@@ -7,6 +7,14 @@ export function todayUtc(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);
 }
 
+/**
+ * Today's date as PayPal sees it (US Pacific time), as YYYY-MM-DD. PayPal reads invoice and
+ * payment dates in that zone, so a UTC date can be "tomorrow" and turn an invoice SCHEDULED.
+ */
+export function paypalToday(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
+
 /** True for a real calendar date written as YYYY-MM-DD (2026-02-30 is false). */
 export function isValidIsoDate(s: string): boolean {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);

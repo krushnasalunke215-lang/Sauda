@@ -23,6 +23,10 @@ export interface PayPalConfig {
   clientSecret: string | null;
   merchantEmail: string | null;
   buyerEmail: string | null;
+  /** How often open invoices are re-read (PAYPAL_POLL_INTERVAL_MS, default 10 s). */
+  pollIntervalMs: number;
+  /** Use this webhook instead of finding or creating one at boot (PAYPAL_WEBHOOK_ID, optional). */
+  webhookId: string | null;
 }
 
 export interface Config {
@@ -96,6 +100,8 @@ export function loadConfig(opts: LoadOptions = {}): Config {
       clientSecret: str(env, 'PAYPAL_CLIENT_SECRET'),
       merchantEmail: str(env, 'PAYPAL_MERCHANT_EMAIL'),
       buyerEmail: str(env, 'PAYPAL_BUYER_EMAIL'),
+      pollIntervalMs: int(env, 'PAYPAL_POLL_INTERVAL_MS', 10_000),
+      webhookId: str(env, 'PAYPAL_WEBHOOK_ID'),
     }),
     gemini: Object.freeze({
       backend,
@@ -120,6 +126,7 @@ export function describeConfig(c: Config): Record<string, unknown> {
     PAYPAL_CLIENT_SECRET: secret('PAYPAL_CLIENT_SECRET', c.paypal.clientSecret),
     PAYPAL_MERCHANT_EMAIL: secret('PAYPAL_MERCHANT_EMAIL', c.paypal.merchantEmail),
     PAYPAL_BUYER_EMAIL: secret('PAYPAL_BUYER_EMAIL', c.paypal.buyerEmail),
+    paypal: { pollIntervalMs: c.paypal.pollIntervalMs, webhookId: c.paypal.webhookId ? 'set' : 'unset' },
     GEMINI_API_KEY: secret('GEMINI_API_KEY', c.gemini.apiKey),
     gemini: {
       backend: c.gemini.backend,

@@ -10,7 +10,12 @@ const room = (dealId: string, role: Role) => `deal:${dealId}:${role}`;
  * Socket.IO on the Fastify server. A client connects with auth {dealId, token}, joins its role's
  * room and receives a full role-filtered 'deal' snapshot on connect and after every change.
  */
-export function attachRealtime(app: FastifyInstance, store: DealStore, baseUrl: string | null): Server {
+export function attachRealtime(
+  app: FastifyInstance,
+  store: DealStore,
+  baseUrl: string | null,
+  opts: { onJoin?: (dealId: string, role: Role) => void } = {},
+): Server {
   const io = new Server(app.server, { serveClient: false });
 
   io.use((socket, next) => {
@@ -27,6 +32,8 @@ export function attachRealtime(app: FastifyInstance, store: DealStore, baseUrl: 
     void socket.join(room(dealId, role));
     const deal = store.get(dealId);
     if (deal) socket.emit('deal', toView(deal, role, baseUrl));
+    // An open page keeps the invoice watched, and re-reads it now (the payer may have just paid).
+    opts.onJoin?.(dealId, role);
   });
 
   store.onChange((deal) => {

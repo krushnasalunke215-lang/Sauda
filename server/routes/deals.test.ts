@@ -189,7 +189,12 @@ describe('deal routes', () => {
   it('serves /healthz', async () => {
     const { app } = await setup(fakeInterpret);
     const res = await app.inject({ method: 'GET', url: '/healthz' });
-    expect(res.json()).toEqual({ ok: true, commit: 'local', ai: { fastModel: 'gemini-3.8-flash', fallbackModel: 'gemini-4-argon' } });
+    expect(res.json()).toEqual({
+      ok: true,
+      commit: 'local',
+      ai: { fastModel: 'gemini-3.8-flash', fallbackModel: 'gemini-4-argon' },
+      webhook: { configured: false, lastVerifiedAt: null },
+    });
   });
 });
 

@@ -172,8 +172,12 @@ export function applyPatch(
   return { terms: t, set };
 }
 
-/** The agreement is locked once an invoice exists: later turns no longer change the terms. */
-export const isLocked = (deal: Deal): boolean => deal.invoice !== null;
+/**
+ * The agreement is locked once an invoice exists (or is being created from it): later turns no
+ * longer change the terms.
+ */
+export const isLocked = (deal: Deal): boolean =>
+  deal.invoice !== null || (deal.proposals ?? []).some((p) => p.tool === 'create_invoice' && p.status === 'running');
 
 /** Applies a turn's patch to the deal (mutates it) unless the agreement is locked. */
 export function patchDeal(deal: Deal, patch: TermsPatch, messageId: string, now: Date, today: string): { set: QuestionField[]; warnings: string[] } {

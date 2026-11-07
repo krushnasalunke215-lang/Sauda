@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, isNotPast, isValidIsoDate, todayUtc } from './dates.js';
+import { formatDate, isNotPast, isValidIsoDate, paypalToday, todayUtc } from './dates.js';
 
 describe('dates', () => {
   it('gives today in UTC', () => {
     expect(todayUtc(new Date('2026-11-06T20:30:00Z'))).toBe('2026-11-06');
+  });
+
+  it("gives today in PayPal's US Pacific time, which can be a day behind UTC", () => {
+    // 09:10 IST on Nov 7 is 03:40 UTC on Nov 7 but still Nov 6 in California.
+    expect(paypalToday(new Date('2026-11-07T03:40:00Z'))).toBe('2026-11-06');
+    expect(paypalToday(new Date('2026-11-06T13:00:00Z'))).toBe('2026-11-06');
   });
 
   it('accepts only real calendar dates', () => {

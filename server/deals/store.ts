@@ -125,6 +125,14 @@ export class DealStore {
     return run;
   }
 
+  /** Records a webhook event once. Returns false when the event id was seen before (a redelivery). */
+  recordWebhookEvent(e: { eventId: string; eventType: string; invoiceId: string | null; verified: boolean }, now: Date = new Date()): boolean {
+    const r = this.db
+      .prepare('INSERT OR IGNORE INTO webhook_events (event_id, received_at, event_type, invoice_id, verified) VALUES (?, ?, ?, ?, ?)')
+      .run(e.eventId, now.toISOString(), e.eventType, e.invoiceId, e.verified ? 1 : 0);
+    return Number(r.changes) > 0;
+  }
+
   /** Registers a listener for every created or updated deal. Returns an unsubscribe function. */
   onChange(listener: Listener): () => void {
     this.listeners.add(listener);
