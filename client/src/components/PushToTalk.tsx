@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 
 import type { Lang } from '../../../shared/types.js';
 import { MAX_RECORD_MS, RecordError, Recorder, type Clip } from '../audio/recorder.js';
 import { t } from '../i18n.js';
+import { Icon } from './Icon.js';
 
 /** A press longer than this is "hold to talk"; a shorter one (a click or tap) toggles recording. */
 const HOLD_MS = 400;
@@ -121,11 +122,11 @@ export function PushToTalk({
       onClick={onClick}
       onContextMenu={(e) => e.preventDefault()}
       style={{ touchAction: 'none' }}
-      className={`flex select-none items-center gap-1 rounded-xl px-3 py-2 text-sm font-medium ${
-        recording ? 'animate-pulse bg-red-600 text-white' : 'bg-stone-100 text-stone-800 ring-1 ring-stone-300 hover:bg-stone-200'
-      } disabled:opacity-50`}
+      className={`inline-flex h-9 select-none items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors ${
+        recording ? 'bg-red-600 text-white' : 'bg-white text-stone-800 ring-1 ring-stone-200 hover:bg-stone-100'
+      } disabled:cursor-not-allowed disabled:opacity-50`}
     >
-      <span aria-hidden>🎤</span>
+      {recording ? <span className="h-2 w-2 animate-pulse rounded-full bg-white" aria-hidden /> : <Icon name="mic" className="text-emerald-700" />}
       {recording ? t(lang, 'voice.recording', { s: elapsed, max: MAX_RECORD_MS / 1000 }) : t(lang, 'voice.hold')}
     </button>
   );

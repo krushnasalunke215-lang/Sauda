@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import type { PhotoKind } from '../../../shared/types.js';
+import { ui } from '../ui.js';
+import { Icon } from './Icon.js';
 
 const MAX_SIDE = 1600;
 const QUALITY = 0.85;
@@ -67,10 +69,11 @@ export function PhotoButton({
         data-kind={kind}
         disabled={disabled || busy}
         onClick={() => input.current?.click()}
-        className="flex items-center gap-1 rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-800 ring-1 ring-stone-300 hover:bg-stone-200 disabled:opacity-50"
+        title={label}
+        className={ui.btnTool}
       >
-        <span aria-hidden>📷</span>
-        {busy ? busyLabel : label}
+        <Icon name="camera" />
+        <span className="hidden sm:inline">{busy ? busyLabel : label}</span>
       </button>
       <input
         ref={input}

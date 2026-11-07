@@ -1,83 +1,101 @@
+import type { ReactNode } from 'react';
 import type { DealView, Lang, TimelineEntry } from '../../../shared/types.js';
 import { t, tMaybe } from '../i18n.js';
+import { ui } from '../ui.js';
 
 const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES' };
 const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
+type Tone = 'call' | 'fail' | 'money' | 'status' | 'webhook' | 'ship' | 'alert';
+const DOT: Record<Tone, string> = {
+  call: 'bg-stone-300',
+  fail: 'bg-red-500',
+  money: 'bg-emerald-600',
+  status: 'bg-emerald-300',
+  webhook: 'bg-violet-400',
+  ship: 'bg-violet-600',
+  alert: 'bg-red-600',
+};
+
+/** One timeline row: a dot on the rail, the title with its time, and quiet technical details below. */
+function Item({ tone, time, title, attrs, children }: { tone: Tone; time: string; title: string; attrs: Record<string, string>; children?: ReactNode }) {
+  const strong = tone === 'money' || tone === 'ship' || tone === 'alert' || tone === 'fail';
+  return (
+    <li data-testid="timeline-entry" {...attrs} className="relative pb-4 pl-6 last:pb-0">
+      <span className="absolute top-1.5 left-0 h-2.5 w-2.5 rounded-full ring-4 ring-white" aria-hidden>
+        <span className={`block h-full w-full rounded-full ${DOT[tone]}`} />
+      </span>
+      <div className="flex items-baseline gap-3">
+        <span className={`flex-1 text-sm ${strong ? 'font-semibold' : 'font-medium'} ${tone === 'alert' || tone === 'fail' ? 'text-red-800' : 'text-stone-900'}`}>{title}</span>
+        <span className="shrink-0 font-mono text-[11px] text-stone-400 tabular-nums">{time}</span>
+      </div>
+      {children && <div className="mt-0.5 space-y-0.5 text-xs text-stone-500">{children}</div>}
+    </li>
+  );
+}
+
 function Row({ e, lang }: { e: TimelineEntry; lang: Lang }) {
   const time = new Intl.DateTimeFormat(LOCALES[lang], { timeStyle: 'medium' }).format(new Date(e.at));
-  const base = 'border-l-2 py-1.5 pl-3 text-xs';
-  const head = (label: string) => (
-    <div className="flex items-baseline gap-2">
-      <span className="font-mono text-[10px] text-stone-400">{time}</span>
-      <span className="font-medium text-stone-800">{label}</span>
-    </div>
-  );
   switch (e.type) {
     case 'paypal_call': {
-      const ok = e.status !== null && e.status >= 200 && e.status < 300;
       const failed = Boolean(e.error) || (e.status !== null && e.status >= 400);
       return (
-        <li data-testid="timeline-entry" data-type={e.type} data-label={e.label} data-debug={e.debugId ?? ''} className={`${base} ${failed ? 'border-red-400' : ok ? 'border-sky-300' : 'border-stone-300'}`}>
-          {head(e.label)}
-          <div className="font-mono text-[11px] text-stone-600">
-            <span className="font-semibold">{e.method}</span> {e.path}
+        <Item tone={failed ? 'fail' : 'call'} time={time} title={e.label} attrs={{ 'data-type': e.type, 'data-label': e.label, 'data-debug': e.debugId ?? '' }}>
+          <div className="font-mono text-[11px] text-stone-500">
+            <span className="font-semibold text-stone-600">{e.method}</span> {e.path}
           </div>
-          <div className="flex flex-wrap gap-x-3 text-[11px] text-stone-500">
+          <div className="flex flex-wrap gap-x-3 font-mono text-[11px] text-stone-400">
             <span>HTTP {e.status ?? (e.error ? '—' : 'OK')}</span>
             <span data-testid="timeline-debug">
-              {t(lang, 'timeline.debug')}: <code className="text-stone-700">{e.debugId ?? '—'}</code>
+              {t(lang, 'timeline.debug')} <span className="text-stone-600">{e.debugId ?? '—'}</span>
             </span>
             <span>{e.ms} ms</span>
           </div>
-          {e.error && <div className="text-[11px] text-red-700">{e.error}</div>}
-        </li>
+          {e.error && <div className="text-red-700">{e.error}</div>}
+        </Item>
       );
     }
     case 'webhook':
       return (
-        <li data-testid="timeline-entry" data-type={e.type} className={`${base} border-violet-300`}>
-          {head(`${t(lang, 'timeline.webhook')} ${e.eventType}`)}
-          <div className="text-[11px] text-stone-600">
-            <code>{e.eventId}</code> · {e.verified ? t(lang, 'timeline.verified') : t(lang, 'timeline.notVerified')}
+        <Item tone="webhook" time={time} title={`${t(lang, 'timeline.webhook')} ${e.eventType}`} attrs={{ 'data-type': e.type }}>
+          <div className="font-mono text-[11px]">
+            {e.eventId} · {e.verified ? t(lang, 'timeline.verified') : t(lang, 'timeline.notVerified')}
             {e.invoiceStatus ? ` · ${e.invoiceStatus}` : ''}
           </div>
-        </li>
+        </Item>
       );
     case 'poll_change':
       return (
-        <li data-testid="timeline-entry" data-type={e.type} data-to={e.to} className={`${base} border-emerald-300`}>
-          {head(t(lang, 'timeline.status', { from: e.from ?? '—', to: e.to, paid: usd(e.paidCents), source: tMaybe(lang, `timeline.source.${e.source}`, {}, e.source) }))}
+        <Item
+          tone="status"
+          time={time}
+          title={t(lang, 'timeline.status', { from: e.from ?? '—', to: e.to, paid: usd(e.paidCents), source: tMaybe(lang, `timeline.source.${e.source}`, {}, e.source) })}
+          attrs={{ 'data-type': e.type, 'data-to': e.to }}
+        >
           {e.debugId && (
-            <div className="text-[11px] text-stone-500">
-              {t(lang, 'timeline.debug')}: <code className="text-stone-700">{e.debugId}</code>
+            <div className="font-mono text-[11px] text-stone-400">
+              {t(lang, 'timeline.debug')} <span className="text-stone-600">{e.debugId}</span>
             </div>
           )}
-        </li>
+        </Item>
       );
     case 'payment':
       return (
-        <li data-testid="timeline-entry" data-type={e.type} data-kind={e.kind} className={`${base} border-emerald-500 bg-emerald-50/50`}>
-          {head(`${t(lang, `timeline.payment.${e.kind}`)} ${usd(e.cents)}`)}
-          <div className="text-[11px] text-stone-600">
-            <code>{e.txnId}</code> · {e.method}
-            {e.method !== 'PAYPAL' && <span className="text-amber-800"> · {t(lang, 'timeline.recorded')}</span>}
+        <Item tone="money" time={time} title={`${t(lang, `timeline.payment.${e.kind}`)} ${usd(e.cents)}`} attrs={{ 'data-type': e.type, 'data-kind': e.kind }}>
+          <div>
+            <span className="font-mono text-[11px]">{e.txnId}</span> · {e.method}
+            {e.method !== 'PAYPAL' && <span className="text-amber-700"> · {t(lang, 'timeline.recorded')}</span>}
           </div>
-        </li>
+        </Item>
       );
     case 'tracking':
       return (
-        <li data-testid="timeline-entry" data-type={e.type} className={`${base} border-violet-500`}>
-          {head(t(lang, 'timeline.tracking', { carrier: e.carrier, number: e.trackingNumber, status: e.status }))}
-          <div className="text-[11px] text-stone-600">{e.txnIds.join(', ')}</div>
-        </li>
+        <Item tone="ship" time={time} title={t(lang, 'timeline.tracking', { carrier: e.carrier, number: e.trackingNumber, status: e.status })} attrs={{ 'data-type': e.type }}>
+          <div className="font-mono text-[11px]">{e.txnIds.join(', ')}</div>
+        </Item>
       );
     case 'alert':
-      return (
-        <li data-testid="timeline-entry" data-type={e.type} className={`${base} border-red-600 bg-red-50 text-red-800`}>
-          {head(tMaybe(lang, `timeline.alert.${e.code}`, e.params, e.code))}
-        </li>
-      );
+      return <Item tone="alert" time={time} title={tMaybe(lang, `timeline.alert.${e.code}`, e.params, e.code)} attrs={{ 'data-type': e.type }} />;
   }
 }
 
@@ -85,16 +103,19 @@ function Row({ e, lang }: { e: TimelineEntry; lang: Lang }) {
 export function MoneyTimeline({ view, lang }: { view: DealView; lang: Lang }) {
   const entries = [...view.timeline].reverse();
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-4" data-testid="timeline">
-      <h2 className="text-sm font-semibold text-stone-600">{t(lang, 'timeline.title')}</h2>
+    <section className={`${ui.card} p-5`} data-testid="timeline">
+      <h2 className={ui.title}>{t(lang, 'timeline.title')}</h2>
       {entries.length === 0 ? (
-        <p className="mt-2 text-sm text-stone-500">{t(lang, 'timeline.empty')}</p>
+        <p className="mt-3 rounded-xl bg-stone-50 px-4 py-3 text-sm leading-relaxed text-stone-500">{t(lang, 'timeline.empty')}</p>
       ) : (
-        <ol className="mt-2 space-y-1">
-          {entries.map((e) => (
-            <Row key={e.id} e={e} lang={lang} />
-          ))}
-        </ol>
+        <div className="relative mt-4">
+          <span className="absolute top-2 bottom-2 left-[4.5px] w-px bg-stone-200" aria-hidden />
+          <ol className="relative">
+            {entries.map((e) => (
+              <Row key={e.id} e={e} lang={lang} />
+            ))}
+          </ol>
+        </div>
       )}
     </section>
   );

@@ -2,6 +2,8 @@ import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
 import { depositPaid, fullyPaid, type DealView, type Lang, type Message } from '../../../shared/types.js';
 import { t, tMaybe } from '../i18n.js';
+import { ui } from '../ui.js';
+import { Icon } from './Icon.js';
 
 const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES' };
 const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -20,23 +22,28 @@ function lastEvent(messages: Message[], types: string[]): Message | undefined {
   return [...messages].reverse().find((m) => m.event && types.includes(m.event.type));
 }
 
-function Chip({ label, event, lang, testId }: { label: string; event: Message | undefined; lang: Lang; testId: string }) {
+/** One payment milestone (deposit, balance or paid in full): a check once received, else a hollow dot. */
+function Milestone({ label, amount, event, lang, testId }: { label: string; amount: string; event: Message | undefined; lang: Lang; testId: string }) {
   const received = Boolean(event);
-  const cents = event?.event?.params.cents;
-  const amount = typeof cents === 'number' ? usd(cents) : '';
   const date = event ? new Intl.DateTimeFormat(LOCALES[lang], { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.createdAt)) : '';
   return (
-    <span
-      data-testid={testId}
-      data-state={received ? 'received' : 'pending'}
-      className={`rounded-full px-2.5 py-1 text-xs font-medium ${received ? 'bg-emerald-100 text-emerald-900' : 'bg-stone-100 text-stone-600'}`}
-    >
-      {label}: {received ? t(lang, 'pay.receivedOn', { amount, date }) : t(lang, 'pay.pending')}
-    </span>
+    <li data-testid={testId} data-state={received ? 'received' : 'pending'} className="flex items-center gap-3 py-2 text-sm">
+      {received ? (
+        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
+          <Icon name="check" size={12} />
+        </span>
+      ) : (
+        <span className="h-5 w-5 shrink-0 rounded-full ring-2 ring-inset ring-stone-200" aria-hidden />
+      )}
+      <span className={`flex-1 ${received ? 'font-medium text-stone-900' : 'text-stone-600'}`}>
+        {label} <span className="font-normal text-stone-500">{amount}</span>
+      </span>
+      <span className={`text-xs ${received ? 'text-emerald-700' : 'text-stone-400'}`}>{received ? date : t(lang, 'pay.pending')}</span>
+    </li>
   );
 }
 
-function PayLink({ url, label, testId }: { url: string; label: string; testId: string }) {
+function PayLink({ url, label, qrLabel, testId }: { url: string; label: string; qrLabel: string; testId: string }) {
   const [qr, setQr] = useState<string | null>(null);
   useEffect(() => {
     let live = true;
@@ -48,19 +55,11 @@ function PayLink({ url, label, testId }: { url: string; label: string; testId: s
     };
   }, [url]);
   return (
-    <div className="mt-3 flex items-start gap-3">
-      <div className="flex-1">
-        <a
-          data-testid={testId}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block rounded-lg bg-[#0070ba] px-4 py-2 text-center font-semibold text-white hover:bg-[#005ea6]"
-        >
-          {label}
-        </a>
-      </div>
-      {qr && <img data-testid="payer-qr" src={qr} width={80} height={80} alt="" className="rounded ring-1 ring-stone-200" />}
+    <div className="flex items-center gap-3">
+      <a data-testid={testId} href={url} target="_blank" rel="noopener noreferrer" className={`${ui.btnPayPal} flex-1`}>
+        {label}
+      </a>
+      {qr && <img data-testid="payer-qr" src={qr} width={64} height={64} alt={qrLabel} title={qrLabel} className="rounded-lg ring-1 ring-stone-200" />}
     </div>
   );
 }
@@ -86,12 +85,13 @@ export function PaymentPanel({
   const deposit = depositPaid(view);
   const depositEvent = lastEvent(view.messages, ['deposit_received']);
   const balanceEvent = lastEvent(view.messages, ['balance_received']);
-  // Paid in one go (the buyer changed the pre-filled deposit to the total): one chip, not two.
+  // Paid in one go (the buyer changed the pre-filled deposit to the total): one row, not two.
   const fullEvent = depositEvent ? undefined : lastEvent(view.messages, ['paid_in_full']);
   const hasBalance = inv.depositCents < inv.totalCents;
   const link = isSandboxLink(inv.payerUrl) ? inv.payerUrl : null;
   const canRemind = !buyer && (inv.status === 'UNPAID' || inv.status === 'PARTIALLY_PAID');
   const reminderBusy = view.proposals.some((p) => p.tool === 'send_reminder' && (p.status === 'pending' || p.status === 'running'));
+  const percent = inv.totalCents > 0 ? Math.min(100, Math.round((inv.paidCents / inv.totalCents) * 100)) : 0;
 
   let step: { kind: 'pay'; label: string; testId: string } | { kind: 'note'; text: string } | null = null;
   if (cancelled) step = { kind: 'note', text: t(lang, 'pay.cancelled') };
@@ -107,89 +107,111 @@ export function PaymentPanel({
   }
 
   return (
-    <section className="rounded-xl border border-sky-200 bg-white p-4" data-testid="payment-panel" data-status={inv.status}>
+    <section className={`${ui.card} p-5`} data-testid="payment-panel" data-status={inv.status}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-semibold text-stone-600">{t(lang, 'pay.title')}</h2>
-        <span data-testid="invoice-number" className="text-xs text-stone-500">
-          {t(lang, 'pay.invoice', { number: inv.number })} · {inv.status}
+        <h2 className={ui.title}>{t(lang, 'pay.title')}</h2>
+        <span data-testid="invoice-number" className={ui.meta}>
+          {t(lang, 'pay.invoice', { number: inv.number })}
         </span>
       </div>
-      <dl className="mt-2 grid grid-cols-3 gap-2 text-center text-sm">
-        <div className="rounded bg-stone-50 p-2">
-          <dt className="text-xs text-stone-500">{t(lang, 'pay.total')}</dt>
-          <dd data-testid="invoice-total" className="font-semibold">{usd(inv.totalCents)}</dd>
+
+      <dl className="mt-4 grid grid-cols-3 gap-2">
+        <div>
+          <dt className={ui.meta}>{t(lang, 'pay.paid')}</dt>
+          <dd data-testid="invoice-paid" className="mt-0.5 text-xl font-semibold tracking-tight text-emerald-800 tabular-nums">
+            {usd(inv.paidCents)}
+          </dd>
         </div>
-        <div className="rounded bg-stone-50 p-2">
-          <dt className="text-xs text-stone-500">{t(lang, 'pay.paid')}</dt>
-          <dd data-testid="invoice-paid" className="font-semibold text-emerald-800">{usd(inv.paidCents)}</dd>
+        <div>
+          <dt className={ui.meta}>{t(lang, 'pay.due')}</dt>
+          <dd data-testid="invoice-due" className="mt-0.5 text-xl font-semibold tracking-tight text-stone-900 tabular-nums">
+            {usd(inv.dueCents)}
+          </dd>
         </div>
-        <div className="rounded bg-stone-50 p-2">
-          <dt className="text-xs text-stone-500">{t(lang, 'pay.due')}</dt>
-          <dd data-testid="invoice-due" className="font-semibold">{usd(inv.dueCents)}</dd>
+        <div className="text-right">
+          <dt className={ui.meta}>{t(lang, 'pay.total')}</dt>
+          <dd data-testid="invoice-total" className="mt-0.5 text-xl font-semibold tracking-tight text-stone-500 tabular-nums">
+            {usd(inv.totalCents)}
+          </dd>
         </div>
       </dl>
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-100" aria-hidden>
+        <div className="h-full rounded-full bg-emerald-600 transition-[width] duration-700" style={{ width: `${percent}%` }} />
+      </div>
+
+      <ul className="mt-3 divide-y divide-stone-100">
         {fullEvent ? (
-          <Chip label={`${t(lang, 'pay.full')} ${usd(inv.totalCents)}`} event={fullEvent} lang={lang} testId="full-chip" />
+          <Milestone label={t(lang, 'pay.full')} amount={usd(inv.totalCents)} event={fullEvent} lang={lang} testId="full-chip" />
         ) : (
           <>
-            <Chip label={`${t(lang, 'pay.deposit')} ${usd(inv.depositCents)}`} event={depositEvent} lang={lang} testId="deposit-chip" />
-            {hasBalance && <Chip label={`${t(lang, 'pay.balance')} ${usd(inv.totalCents - inv.depositCents)}`} event={balanceEvent} lang={lang} testId="balance-chip" />}
+            <Milestone label={t(lang, 'pay.deposit')} amount={usd(inv.depositCents)} event={depositEvent} lang={lang} testId="deposit-chip" />
+            {hasBalance && <Milestone label={t(lang, 'pay.balance')} amount={usd(inv.totalCents - inv.depositCents)} event={balanceEvent} lang={lang} testId="balance-chip" />}
           </>
         )}
-      </div>
-      {inv.textMatches ? (
-        <p data-testid="text-match" data-state="ok" className="mt-2 text-xs text-emerald-800">
-          {t(lang, 'pay.textMatches')}
-        </p>
-      ) : (
-        <p data-testid="text-match" data-state="changed" className="mt-2 rounded bg-red-50 p-2 text-xs font-medium text-red-800">
-          {t(lang, 'pay.textChanged')}
-        </p>
-      )}
+      </ul>
+
       {view.tracking && (
-        <p data-testid="tracking-info" className="mt-2 text-xs text-violet-800">
+        <p data-testid="tracking-info" className="mt-2 flex items-center gap-2 text-sm text-stone-700">
+          <Icon name="truck" className="text-stone-500" />
           {t(lang, 'pay.shipped', { carrier: tMaybe(lang, `carrier.${view.tracking.carrier}`, {}, view.tracking.carrier), number: view.tracking.number })}
         </p>
       )}
 
-      {step?.kind === 'pay' && link && (
-        <>
-          <PayLink url={link} label={step.label} testId={step.testId} />
-          <p className="mt-2 text-xs text-stone-500">{t(lang, 'pay.tip')}</p>
-        </>
-      )}
-      {step?.kind === 'note' && (
-        <p data-testid="payment-step" className="mt-3 text-sm text-stone-700">
-          {step.text}
+      <div className="mt-4">
+        {step?.kind === 'pay' && link && (
+          <>
+            <PayLink url={link} label={step.label} qrLabel={t(lang, 'pay.qr')} testId={step.testId} />
+            <p className="mt-2 text-xs leading-relaxed text-stone-400">{t(lang, 'pay.tip')}</p>
+          </>
+        )}
+        {step?.kind === 'note' && (
+          <p
+            data-testid="payment-step"
+            className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm leading-relaxed ${paid ? 'bg-emerald-50 text-emerald-900' : 'bg-stone-50 text-stone-700'}`}
+          >
+            <Icon name={paid ? 'checkCircle' : 'clock'} className={`mt-0.5 ${paid ? 'text-emerald-700' : 'text-stone-400'}`} />
+            {step.text}
+          </p>
+        )}
+      </div>
+
+      {inv.textMatches ? (
+        <p data-testid="text-match" data-state="ok" className="mt-3 flex items-center gap-1.5 text-xs text-stone-500">
+          <Icon name="shieldCheck" size={14} className="text-emerald-700" />
+          {t(lang, 'pay.textMatches')}
+        </p>
+      ) : (
+        <p data-testid="text-match" data-state="changed" className="mt-3 flex items-start gap-2 rounded-xl bg-red-50 px-3 py-2 text-xs font-medium text-red-800">
+          <Icon name="alert" size={14} className="mt-px" />
+          {t(lang, 'pay.textChanged')}
         </p>
       )}
 
-      {buyer && !paid && !cancelled && (
-        <button
-          type="button"
-          data-testid="refresh-payment"
-          disabled={checking}
-          onClick={async () => {
-            setChecking(true);
-            await onRefresh();
-            setChecking(false);
-          }}
-          className="mt-2 w-full rounded-lg border border-sky-300 px-3 py-1.5 text-sm text-sky-900 hover:bg-sky-50 disabled:opacity-50"
-        >
-          {checking ? t(lang, 'pay.checking') : t(lang, 'pay.checkNow')}
-        </button>
-      )}
-      {canRemind && (
-        <button
-          type="button"
-          data-testid="remind-buyer"
-          disabled={reminderBusy}
-          onClick={() => void onRemind()}
-          className="mt-2 w-full rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-800 hover:bg-stone-50 disabled:opacity-50"
-        >
-          {t(lang, 'pay.remind')}
-        </button>
+      {((buyer && !paid && !cancelled) || canRemind) && (
+        <div className="mt-3 flex flex-wrap gap-1 border-t border-stone-100 pt-3">
+          {buyer && !paid && !cancelled && (
+            <button
+              type="button"
+              data-testid="refresh-payment"
+              disabled={checking}
+              onClick={async () => {
+                setChecking(true);
+                await onRefresh();
+                setChecking(false);
+              }}
+              className={ui.btnGhost}
+            >
+              <Icon name="refresh" size={14} className={checking ? 'animate-spin' : ''} />
+              {checking ? t(lang, 'pay.checking') : t(lang, 'pay.checkNow')}
+            </button>
+          )}
+          {canRemind && (
+            <button type="button" data-testid="remind-buyer" disabled={reminderBusy} onClick={() => void onRemind()} className={ui.btnGhost}>
+              <Icon name="bell" size={14} />
+              {t(lang, 'pay.remind')}
+            </button>
+          )}
+        </div>
       )}
     </section>
   );

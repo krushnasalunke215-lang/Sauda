@@ -9,10 +9,10 @@ export function App() {
   const token = new URLSearchParams(window.location.search).get('t');
   if (room && token) return <Room dealId={room[1]} token={token} />;
   return (
-    <main className="mx-auto max-w-xl p-8">
-      <h1 className="text-2xl font-semibold">Sauda</h1>
-      <p className="mt-2 text-stone-600">Page not found.</p>
-      <a className="mt-4 inline-block text-emerald-700 underline" href="/">
+    <main className="mx-auto max-w-md px-4 py-24 text-center">
+      <h1 className="text-2xl font-bold tracking-tight text-stone-900">Sauda</h1>
+      <p className="mt-2 text-sm text-stone-500">Page not found.</p>
+      <a className="mt-6 inline-block text-sm font-medium text-emerald-700 hover:text-emerald-800" href="/">
         Home
       </a>
     </main>

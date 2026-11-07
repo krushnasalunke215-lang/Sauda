@@ -1,22 +1,27 @@
 import { useEffect, useState } from 'react';
 import { CARRIERS, type DealView, type Lang, type Proposal } from '../../../shared/types.js';
 import { t, tMaybe } from '../i18n.js';
+import { ui } from '../ui.js';
+import { Icon } from './Icon.js';
 
 const usd = (v: unknown) => (typeof v === 'number' ? `$${(v / 100).toFixed(2)}` : '');
 const carrierName = (lang: Lang, c: unknown) => (typeof c === 'string' && c ? tMaybe(lang, `carrier.${c}`, {}, c) : '');
 
 const STATUS_STYLE: Record<Proposal['status'], string> = {
-  pending: 'bg-amber-100 text-amber-900',
-  running: 'bg-sky-100 text-sky-900',
-  done: 'bg-emerald-100 text-emerald-900',
-  failed: 'bg-red-100 text-red-900',
-  rejected: 'bg-stone-200 text-stone-600',
-  stale: 'bg-stone-200 text-stone-600',
+  pending: 'bg-amber-50 text-amber-800',
+  running: 'bg-sky-50 text-sky-800',
+  done: 'text-emerald-700',
+  failed: 'bg-red-50 text-red-700',
+  rejected: 'text-stone-400',
+  stale: 'text-stone-400',
 };
+
+/** Open cards need attention; finished ones shrink to a single line. */
+const isOpen = (p: Proposal) => p.status === 'pending' || p.status === 'running' || p.status === 'failed';
 
 function CarrierSelect({ lang, value, onChange, testId }: { lang: Lang; value: string; onChange: (v: string) => void; testId: string }) {
   return (
-    <select data-testid={testId} value={value} onChange={(e) => onChange(e.target.value)} className="rounded border border-stone-300 px-2 py-1 text-sm">
+    <select data-testid={testId} value={value} onChange={(e) => onChange(e.target.value)} className={`${ui.input} w-auto flex-1 py-1.5`} aria-label={t(lang, 'tracking.carrier')}>
       <option value="">{t(lang, 'tracking.pick')}</option>
       {CARRIERS.map((c) => (
         <option key={c} value={c}>
@@ -32,7 +37,18 @@ export interface ProposalActions {
   onReject: (id: string) => Promise<boolean>;
 }
 
-/** One agent proposal: the maker approves or rejects it; the buyer sees its state. */
+/** A finished proposal (done, rejected or out of date) as one quiet line. */
+function ProposalLine({ p, lang }: { p: Proposal; lang: Lang }) {
+  return (
+    <li data-testid="proposal" data-tool={p.tool} data-status={p.status} className="flex items-center gap-2 py-2 text-sm">
+      <Icon name={p.status === 'done' ? 'checkCircle' : 'x'} size={15} className={p.status === 'done' ? 'text-emerald-600' : 'text-stone-300'} />
+      <span className={`flex-1 truncate ${p.status === 'done' ? 'text-stone-700' : 'text-stone-400 line-through decoration-stone-300'}`}>{t(lang, `proposal.tool.${p.tool}`)}</span>
+      <span className={`text-xs ${STATUS_STYLE[p.status]}`}>{t(lang, `proposal.status.${p.status}`)}</span>
+    </li>
+  );
+}
+
+/** One open agent proposal: the maker approves or rejects it; the buyer sees its state. */
 export function ProposalCard({ p, view, lang, actions }: { p: Proposal; view: DealView; lang: Lang; actions: ProposalActions }) {
   const maker = view.role === 'maker';
   const open = p.status === 'pending' || p.status === 'failed';
@@ -60,30 +76,33 @@ export function ProposalCard({ p, view, lang, actions }: { p: Proposal; view: De
   };
 
   return (
-    <div data-testid="proposal" data-tool={p.tool} data-status={p.status} className={`rounded-lg border p-3 ${open ? 'border-amber-300 bg-amber-50/40' : 'border-stone-200'}`}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="text-sm font-semibold">{t(lang, `proposal.tool.${p.tool}`)}</div>
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[p.status]}`}>{t(lang, `proposal.status.${p.status}`)}</span>
+    <li data-testid="proposal" data-tool={p.tool} data-status={p.status} className="rounded-xl bg-stone-50 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="text-sm font-semibold text-stone-900">{t(lang, `proposal.tool.${p.tool}`)}</div>
+        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[p.status]}`}>
+          {p.status === 'running' && <Icon name="refresh" size={11} className="animate-spin" />}
+          {t(lang, `proposal.status.${p.status}`)}
+        </span>
       </div>
-      {reason && <p className="mt-0.5 text-xs text-stone-500">{reason}</p>}
       {editable ? (
-        <div className="mt-2 flex flex-wrap items-center gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <CarrierSelect lang={lang} value={carrier} onChange={setCarrier} testId="proposal-carrier" />
           <input
             data-testid="proposal-number"
             value={number}
             onChange={(e) => setNumber(e.target.value)}
-            className="w-36 rounded border border-stone-300 px-2 py-1 text-sm"
+            className={`${ui.input} w-36 py-1.5`}
             aria-label={t(lang, 'tracking.number')}
           />
         </div>
       ) : (
-        <p data-testid="proposal-args" className="mt-1 text-sm text-stone-700">
+        <p data-testid="proposal-args" className="mt-1.5 text-sm leading-relaxed text-stone-600">
           {args}
         </p>
       )}
+      {reason && <p className="mt-1.5 text-xs text-stone-400">{reason}</p>}
       {p.status === 'failed' && p.error && (
-        <p data-testid="proposal-error" data-error={p.error} className="mt-2 rounded bg-red-50 p-2 text-xs text-red-800">
+        <p data-testid="proposal-error" data-error={p.error} className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
           {tMaybe(lang, `proposal.error.${p.error}`, { name: String(r.name ?? ''), message: String(r.message ?? '') }, tMaybe(lang, `error.${p.error}`, {}, p.error))}
           {typeof r.debugId === 'string' && r.debugId && (
             <span className="ml-1 font-mono text-[10px] text-red-700">
@@ -93,33 +112,28 @@ export function ProposalCard({ p, view, lang, actions }: { p: Proposal; view: De
         </p>
       )}
       {maker && open && (
-        <div className="mt-2 flex gap-2">
+        <div className="mt-4 flex gap-2">
           <button
             type="button"
             data-testid="proposal-approve"
             disabled={busy || (editable && !carrier)}
             onClick={() => void act(() => actions.onApprove(p.id, editable ? { carrier, trackingNumber: number } : undefined))}
-            className="flex-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+            className={`${ui.btnPrimary} flex-1 py-2`}
           >
             {t(lang, p.status === 'failed' ? 'proposal.retry' : 'proposal.approve')}
           </button>
-          <button
-            type="button"
-            data-testid="proposal-reject"
-            disabled={busy}
-            onClick={() => void act(() => actions.onReject(p.id))}
-            className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50"
-          >
+          <button type="button" data-testid="proposal-reject" disabled={busy} onClick={() => void act(() => actions.onReject(p.id))} className={`${ui.btnSecondary} py-2`}>
             {t(lang, 'proposal.reject')}
           </button>
         </div>
       )}
       {!maker && p.status === 'pending' && (
-        <p data-testid="proposal-waiting" className="mt-2 text-xs text-stone-500">
+        <p data-testid="proposal-waiting" className="mt-3 flex items-center gap-1.5 text-xs text-stone-500">
+          <Icon name="clock" size={14} />
           {t(lang, 'proposal.waiting', { name: view.parties.maker.name })}
         </p>
       )}
-    </div>
+    </li>
   );
 }
 
@@ -131,7 +145,7 @@ function TrackingForm({ lang, onPropose }: { lang: Lang; onPropose: (carrier: st
   return (
     <form
       data-testid="tracking-form"
-      className="mt-3 rounded-lg border border-stone-200 p-3"
+      className="mt-3 border-t border-stone-100 pt-3"
       onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true);
@@ -139,7 +153,10 @@ function TrackingForm({ lang, onPropose }: { lang: Lang; onPropose: (carrier: st
         setBusy(false);
       }}
     >
-      <div className="text-sm font-semibold text-stone-600">{t(lang, 'tracking.title')}</div>
+      <div className="flex items-center gap-1.5 text-xs font-medium text-stone-500">
+        <Icon name="truck" size={14} />
+        {t(lang, 'tracking.title')}
+      </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <CarrierSelect lang={lang} value={carrier} onChange={setCarrier} testId="tracking-carrier" />
         <input
@@ -147,14 +164,9 @@ function TrackingForm({ lang, onPropose }: { lang: Lang; onPropose: (carrier: st
           value={number}
           placeholder={t(lang, 'tracking.number')}
           onChange={(e) => setNumber(e.target.value)}
-          className="w-36 rounded border border-stone-300 px-2 py-1 text-sm"
+          className={`${ui.input} w-36 py-1.5`}
         />
-        <button
-          type="submit"
-          data-testid="tracking-submit"
-          disabled={busy || !carrier || number.trim().length < 4}
-          className="rounded-lg bg-violet-700 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-800 disabled:opacity-50"
-        >
+        <button type="submit" data-testid="tracking-submit" disabled={busy || !carrier || number.trim().length < 4} className={`${ui.btnSecondary} py-1.5`}>
           {t(lang, 'tracking.submit')}
         </button>
       </div>
@@ -180,15 +192,26 @@ export function ProposalsPanel({
   const showForm = view.role === 'maker' && inv !== null && inv.paidCents > 0 && !view.tracking && !trackingOpen && inv.status !== 'CANCELLED';
   if (view.proposals.length === 0 && !showForm) return null;
   const shown = [...view.proposals].reverse().slice(0, MAX_SHOWN);
+  const openCards = shown.filter(isOpen);
+  const finished = shown.filter((p) => !isOpen(p));
   return (
-    <section className="rounded-xl border border-stone-200 bg-white p-4" data-testid="proposals">
-      <h2 className="text-sm font-semibold text-stone-600">{t(lang, 'proposal.title')}</h2>
-      <p className="text-[11px] text-stone-500">{t(lang, 'proposal.motto')}</p>
-      <div className="mt-2 space-y-2">
-        {shown.map((p) => (
-          <ProposalCard key={p.id} p={p} view={view} lang={lang} actions={actions} />
-        ))}
-      </div>
+    <section className={`${ui.card} p-5`} data-testid="proposals">
+      <h2 className={ui.title}>{t(lang, 'proposal.title')}</h2>
+      {openCards.length > 0 && <p className={`${ui.meta} mt-0.5`}>{t(lang, 'proposal.motto')}</p>}
+      {openCards.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {openCards.map((p) => (
+            <ProposalCard key={p.id} p={p} view={view} lang={lang} actions={actions} />
+          ))}
+        </ul>
+      )}
+      {finished.length > 0 && (
+        <ul className={`divide-y divide-stone-100 ${openCards.length > 0 ? 'mt-2' : 'mt-1'}`}>
+          {finished.map((p) => (
+            <ProposalLine key={p.id} p={p} lang={lang} />
+          ))}
+        </ul>
+      )}
       {showForm && <TrackingForm lang={lang} onPropose={onProposeTracking} />}
     </section>
   );

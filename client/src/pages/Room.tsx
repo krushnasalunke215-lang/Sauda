@@ -7,22 +7,64 @@ import { ChatPanel } from '../components/ChatPanel.js';
 import { Composer } from '../components/Composer.js';
 import { ConfirmCard } from '../components/ConfirmCard.js';
 import { CopyButton } from '../components/CopyButton.js';
+import { Icon } from '../components/Icon.js';
 import { MoneyTimeline } from '../components/MoneyTimeline.js';
 import { PaymentPanel } from '../components/PaymentPanel.js';
 import { ProposalsPanel } from '../components/ProposalCard.js';
 import { QuestionsPanel } from '../components/QuestionsPanel.js';
 import { renderError, t } from '../i18n.js';
 import { subscribeDeal, type SocketStatus } from '../socket.js';
+import { ui, useCloseOnOutside } from '../ui.js';
 
-const PHASE_STYLE: Record<DealView['phase'], string> = {
-  negotiating: 'bg-amber-100 text-amber-900',
-  confirmed: 'bg-emerald-100 text-emerald-900',
-  invoiced: 'bg-sky-100 text-sky-900',
-  deposit_paid: 'bg-sky-100 text-sky-900',
-  paid: 'bg-emerald-200 text-emerald-950',
-  shipped: 'bg-violet-100 text-violet-900',
-  cancelled: 'bg-stone-200 text-stone-700',
+/** How many of the five deal steps (confirm, invoice, deposit, balance, ship) are done in each phase. */
+const PHASE_STEPS: Record<DealView['phase'], number> = {
+  negotiating: 0,
+  confirmed: 1,
+  invoiced: 2,
+  deposit_paid: 3,
+  paid: 4,
+  shipped: 5,
+  cancelled: 0,
 };
+
+/** The deal phase: five small segments for the steps done, and the phase name. */
+function PhaseBadge({ phase, lang }: { phase: DealView['phase']; lang: Lang }) {
+  const done = PHASE_STEPS[phase];
+  const tone = phase === 'cancelled' ? 'text-stone-500' : phase === 'negotiating' ? 'text-stone-700' : 'text-emerald-800';
+  return (
+    <div data-testid="phase" data-phase={phase} className="flex shrink-0 items-center gap-2.5">
+      <div className="hidden gap-1 sm:flex" aria-hidden>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <span key={i} className={`h-1.5 w-4 rounded-full ${i < done ? 'bg-emerald-600' : 'bg-stone-200'}`} />
+        ))}
+      </div>
+      <span className={`text-sm font-medium ${tone}`}>{t(lang, `phase.${phase}`)}</span>
+    </div>
+  );
+}
+
+/** The maker's buyer invite link, in a small popover. */
+function InviteMenu({ url, lang }: { url: string; lang: Lang }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useCloseOnOutside(ref);
+  return (
+    <details ref={ref} className="relative">
+      <summary className={`${ui.btnSecondary} ${ui.summary} py-1.5`} title={t(lang, 'room.invite')}>
+        <Icon name="link" />
+        <span className="hidden md:inline">{t(lang, 'room.invite')}</span>
+      </summary>
+      <div className={`${ui.menu} absolute right-0 top-full mt-2 w-80 p-4`}>
+        <div className={ui.label}>{t(lang, 'room.invite')}</div>
+        <div className="mt-2 flex items-center gap-2">
+          <code data-testid="invite-url" className="min-w-0 flex-1 truncate rounded-lg bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700 ring-1 ring-stone-200">
+            {url}
+          </code>
+          <CopyButton text={url} label={t(lang, 'room.copy')} done={t(lang, 'room.copied')} />
+        </div>
+      </div>
+    </details>
+  );
+}
 
 type Sound = 'unset' | 'on' | 'off';
 const SOUND_KEY = 'sauda.autoplay';
@@ -162,14 +204,15 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
 
   if (status === 'forbidden') {
     return (
-      <main className="mx-auto max-w-xl p-8">
-        <p className="text-red-700" data-testid="forbidden">
+      <main className="mx-auto max-w-md px-4 py-24 text-center">
+        <p className="inline-flex items-center gap-2 text-sm text-red-700" data-testid="forbidden">
+          <Icon name="alert" />
           {t('en', 'room.forbidden')}
         </p>
       </main>
     );
   }
-  if (!view) return <main className="p-8 text-stone-500">{t('en', 'room.connecting')}</main>;
+  if (!view) return <main className="px-4 py-24 text-center text-sm text-stone-500">{t('en', 'room.connecting')}</main>;
 
   const me = view.parties[view.role];
   const other = view.parties[otherRole(view.role)];
@@ -189,28 +232,30 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
     }
   };
 
+  const soundLabel = t(lang, sound === 'on' ? 'sound.on' : 'sound.off');
+
   return (
-    <div className="flex min-h-screen flex-col" data-testid="room" data-role={view.role} data-lang={lang}>
-      <header className="border-b border-stone-200 bg-white px-4 py-3">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2">
-          <div className="text-xl font-bold">
-            {t(lang, 'app.name')} <span className="text-sm font-normal text-stone-500">SAUDA-{view.id}</span>
+    <div className="flex min-h-dvh flex-col" data-testid="room" data-role={view.role} data-lang={lang}>
+      <header className="sticky top-0 z-20 h-14 shrink-0 border-b border-stone-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex h-full max-w-7xl items-center gap-3 px-4 sm:gap-4">
+          <span className="text-base font-bold tracking-tight text-stone-900">{t(lang, 'app.name')}</span>
+          <span className="h-6 w-px bg-stone-200" aria-hidden />
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="truncate text-sm font-semibold text-stone-900">
+              {me.name} <span className="font-normal text-stone-500">· {t(lang, `role.${view.role}`)}</span>
+            </div>
+            <div className="truncate text-xs text-stone-500">
+              {t(lang, 'room.with', { name: other.name })} · SAUDA-{view.id}
+            </div>
           </div>
-          <div className="text-sm text-stone-600">
-            {t(lang, 'room.you', { role: t(lang, `role.${view.role}`) })}: <b>{me.name}</b> · {t(lang, 'room.with', { name: other.name })}
-          </div>
-          <span data-testid="phase" data-phase={view.phase} className={`rounded-full px-3 py-1 text-xs font-semibold ${PHASE_STYLE[view.phase]}`}>
-            {t(lang, `phase.${view.phase}`)}
-          </span>
-          {status !== 'connected' && <span className="text-xs text-amber-700">{t(lang, status === 'connecting' ? 'room.connecting' : 'room.reconnecting')}</span>}
+          <PhaseBadge phase={view.phase} lang={lang} />
+          {status !== 'connected' && (
+            <span className="hidden text-xs text-amber-700 sm:inline">{t(lang, status === 'connecting' ? 'room.connecting' : 'room.reconnecting')}</span>
+          )}
           {sound === 'unset' ? (
-            <button
-              type="button"
-              data-testid="enable-sound"
-              className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200"
-              onClick={() => setSound('on')}
-            >
-              🔈 {t(lang, 'sound.enable')}
+            <button type="button" data-testid="enable-sound" className={ui.btnGhost} title={t(lang, 'sound.enable')} onClick={() => setSound('on')}>
+              <Icon name="volumeOff" />
+              <span className="hidden md:inline">{t(lang, 'sound.enable')}</span>
             </button>
           ) : (
             <button
@@ -218,27 +263,20 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
               data-testid="sound-toggle"
               data-state={sound}
               aria-pressed={sound === 'on'}
-              className="rounded-full bg-stone-100 px-3 py-1 text-xs text-stone-700 ring-1 ring-stone-300 hover:bg-stone-200"
+              aria-label={soundLabel}
+              title={soundLabel}
+              className={ui.btnIcon}
               onClick={() => setSound(sound === 'on' ? 'off' : 'on')}
             >
-              {sound === 'on' ? `🔊 ${t(lang, 'sound.on')}` : `🔇 ${t(lang, 'sound.off')}`}
+              <Icon name={sound === 'on' ? 'volume' : 'volumeOff'} size={18} />
             </button>
           )}
-          {inviteUrl && (
-            <div className="flex items-center gap-2 text-xs sm:ml-auto">
-              <span className="text-stone-500">{t(lang, 'room.invite')}</span>
-              <code data-testid="invite-url" className="max-w-56 truncate rounded bg-stone-100 px-2 py-1">
-                {inviteUrl}
-              </code>
-              <CopyButton text={inviteUrl} label={t(lang, 'room.copy')} done={t(lang, 'room.copied')} />
-            </div>
-          )}
+          {inviteUrl && <InviteMenu url={inviteUrl} lang={lang} />}
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-6xl flex-1 gap-4 p-4 lg:grid-cols-[1fr_380px]">
-        <section className="flex min-h-[60vh] flex-col overflow-hidden rounded-xl border border-stone-200 bg-white lg:h-[calc(100vh-7rem)]">
-          <h2 className="border-b border-stone-100 px-4 py-2 text-sm font-semibold text-stone-600">{t(lang, 'chat.title')}</h2>
+      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem)] lg:flex-none lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[minmax(0,1fr)]">
+        <section className={`${ui.card} flex min-h-[70vh] flex-col overflow-hidden lg:min-h-0`}>
           <ChatPanel
             view={view}
             lang={lang}
@@ -250,15 +288,20 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
               onDecide: (mid, approve) => void run(() => api<DealView>(`/api/deals/${dealId}/photos/${mid}/decision`, { token, body: { approve } })),
             }}
           />
-          {error && (
-            <p className="px-4 py-1 text-sm text-red-700" data-testid="room-error">
-              {error}
-            </p>
-          )}
-          {notice && (
-            <p className="px-4 py-1 text-sm text-amber-800" data-testid="speech-notice">
-              {notice}
-            </p>
+          {(error || notice) && (
+            <div className="space-y-1.5 px-4 pt-2 sm:px-5">
+              {error && (
+                <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800" data-testid="room-error">
+                  <Icon name="alert" />
+                  {error}
+                </p>
+              )}
+              {notice && (
+                <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="speech-notice">
+                  {notice}
+                </p>
+              )}
+            </div>
           )}
           <Composer
             lang={lang}
@@ -274,8 +317,9 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
             }
           />
         </section>
-        <aside className="flex flex-col gap-4 lg:h-[calc(100vh-7rem)] lg:overflow-y-auto">
-          <div className="flex gap-1 rounded-lg bg-stone-200/60 p-1 text-sm" role="tablist">
+
+        <aside className="scroll-quiet flex min-h-0 flex-col gap-4 lg:-mr-2 lg:overflow-y-auto lg:pr-2">
+          <div className="flex shrink-0 gap-1 rounded-xl bg-stone-200/60 p-1 text-sm" role="tablist">
             {(['deal', 'timeline'] as const).map((k) => (
               <button
                 key={k}
@@ -284,10 +328,14 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
                 aria-selected={tab === k}
                 data-testid={`tab-${k}`}
                 onClick={() => setTab(k)}
-                className={`flex-1 rounded-md px-3 py-1 ${tab === k ? 'bg-white font-semibold shadow-sm' : 'text-stone-600 hover:bg-white/60'}`}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors ${
+                  tab === k ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-900'
+                }`}
               >
                 {t(lang, `tab.${k}`)}
-                {k === 'timeline' && view.timeline.length > 0 && <span className="ml-1 text-xs text-stone-500">({view.timeline.length})</span>}
+                {k === 'timeline' && view.timeline.length > 0 && (
+                  <span className="rounded-full bg-stone-100 px-1.5 text-[11px] font-medium text-stone-500">{view.timeline.length}</span>
+                )}
               </button>
             ))}
           </div>
@@ -312,18 +360,19 @@ export function Room({ dealId, token }: { dealId: string; token: string }) {
                   run(() => api(`/api/deals/${dealId}/proposals`, { token, body: { tool: 'add_tracking', args: { carrier, trackingNumber } } }))
                 }
               />
-              <AgreementPanel view={view} lang={lang} onCite={cite} />
-              <QuestionsPanel
-                view={view}
-                lang={lang}
-                onCite={cite}
-                onDismiss={(qid) => void run(() => api<DealView>(`/api/deals/${dealId}/questions/${qid}/dismiss`, { method: 'POST', token }))}
-              />
-              <ConfirmCard
-                view={view}
-                lang={lang}
-                onConfirm={() => run(() => api<DealView>(`/api/deals/${dealId}/confirm`, { token, body: { hash: view.agreement.hash } }))}
-              />
+              <AgreementPanel view={view} lang={lang} onCite={cite}>
+                <QuestionsPanel
+                  view={view}
+                  lang={lang}
+                  onCite={cite}
+                  onDismiss={(qid) => void run(() => api<DealView>(`/api/deals/${dealId}/questions/${qid}/dismiss`, { method: 'POST', token }))}
+                />
+                <ConfirmCard
+                  view={view}
+                  lang={lang}
+                  onConfirm={() => run(() => api<DealView>(`/api/deals/${dealId}/confirm`, { token, body: { hash: view.agreement.hash } }))}
+                />
+              </AgreementPanel>
             </>
           )}
         </aside>

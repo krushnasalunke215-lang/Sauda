@@ -1,0 +1,70 @@
+# Sauda design rules
+
+Sauda's UI is clean and minimal: each screen shows only what the viewer needs for their next step, and the text is organized in a clear order. Every screen and component follows these rules, including later ones (the judge-mode `/demo` page, the mobile buyer layout and the production board).
+
+The code side of the rules is in `client/src/ui.ts` (class tokens), `client/src/components/Icon.tsx` (icons) and `client/src/styles.css` (theme). Reuse them. Do not write ad-hoc button or card classes.
+
+## Principles
+
+1. **One next step per card.** A card has at most one primary (filled) button. Everything else is a secondary, ghost or icon button.
+2. **Show the current state; fold the rest.** Finished things shrink: a locked agreement folds into a one-line card, done proposals become single lines, and answered questions fold into a "Closed questions (n)" toggle. Empty panels render nothing (no "No open questions" boxes).
+3. **Viewer's language first.** Each bubble shows the viewer's language in the main text. The other language sits underneath in smaller grey text with a small label. All visible text goes through `t()` with keys in en, hi and es. Never hard-code English in a component.
+4. **Technical detail is quiet.** Model badges, message numbers, debug IDs, HTTP statuses and hashes stay in small `text-stone-400` or mono text, but they stay visible, because judges look for them. Keep every existing `data-testid`.
+5. **Colour carries meaning.** Colour marks state only (done, waiting, needs attention, error), not decoration.
+
+## Layout
+
+- Page background `bg-stone-50` (set on `<body>`). Content sits in white cards: `ui.card` (`rounded-2xl bg-white ring-1 ring-stone-200/80`) with `p-5`. No borders inside cards except `divide-stone-100` or `border-stone-100` separators.
+- Room: a 56 px sticky header (`h-14`) with the app name, the viewer's name and role, "with {other} · SAUDA-id", the phase badge, the sound icon button and (maker only) the invite-link popover. Below it, from `lg` up, a two-column grid fills the viewport (`minmax(0,1fr) 400px`). The chat card is on the left. The side panel scrolls on its own on the right.
+- Side panel order: Deal / Money timeline tabs, then Payment (once the invoice exists), Agent proposals (when there are any), then Agreement. The questions and the confirm footer live inside the Agreement card.
+- Home (`/`): a centred `max-w-xl` column with the title, a one-line tagline and one form card. The result links appear in a second card.
+- Spacing: `gap-4` between cards, `mt-3` or `mt-4` between blocks inside a card, `space-y-4` between chat messages. Max content width `max-w-7xl`.
+- Below `lg`, everything stacks in one column. The FEAT-004 mobile buyer layout (tabs under 768 px, sticky composer) keeps these cards and tokens.
+
+## Type
+
+- Font: Noto Sans plus Noto Sans Devanagari (loaded in `client/index.html`). Never make Devanagari smaller than 13 px.
+- Page title `text-4xl font-bold tracking-tight` (home only). Card title `ui.title` (`text-sm font-semibold text-stone-900`). Meta text `ui.meta` (`text-xs text-stone-500`). Form label `ui.label`.
+- Chat main text `text-[15px] leading-relaxed text-stone-900`. Chat secondary text `text-[13px] text-stone-500`, with an `text-[11px] text-stone-400` label above it.
+- Money: `text-xl font-semibold tracking-tight tabular-nums`. Use the `$x.xx` format the panels already use.
+- Use sentence case. Do not use all-caps labels.
+
+## Colour
+
+| Meaning | Classes |
+|---|---|
+| Text | `stone-900` main, `stone-600`/`stone-500` secondary, `stone-400` quiet |
+| Primary action, done, money received | `emerald-700` buttons, `emerald-600` dots and bars, `emerald-50` soft background |
+| Waiting for you, warning | `amber-50` background with `amber-800`/`amber-900` text |
+| Error | `red-50` background with `red-700`/`red-800` text |
+| PayPal pay buttons only | `bg-paypal` / `hover:bg-paypal-dark` (`#0070ba` / `#005ea6`, defined in `styles.css`) |
+| Running on PayPal | `sky-50` / `sky-800` |
+| Shipping, webhooks (timeline dots only) | `violet-400` / `violet-600` |
+
+Do not introduce new hues. Bubbles: your own messages are `bg-emerald-50` (right-aligned, `rounded-br-md`); the other side's are `bg-stone-100` (left-aligned, `rounded-bl-md`).
+
+## Components and tokens (`client/src/ui.ts`)
+
+- Buttons: `ui.btnPrimary` (one per card), `ui.btnSecondary`, `ui.btnGhost` (quiet text actions such as "check now" or "remind"), `ui.btnIcon` (36 px round, needs `aria-label` and `title`), `ui.btnTool` (composer pills), `ui.btnPayPal` (pay links only), `ui.btnBubble` (small actions inside a bubble).
+- Inputs: `ui.input` for inputs and selects; `ui.label` above them.
+- Popovers: a `<details>` with `ui.summary` on the `<summary>` and `ui.menu` on the panel. Call `useCloseOnOutside(ref)` so a click outside or Escape closes it.
+- Status: a small dot (`h-1.5 w-1.5 rounded-full`) or a check circle with a short text, not a coloured pill per field. Status pills (`rounded-full px-2 py-0.5 text-[11px]`) are only for proposal states.
+- The phase badge in the header shows five segments (confirm, invoice, deposit, balance, ship) plus the phase name. A new page that shows a deal reuses `PhaseBadge` from `pages/Room.tsx` instead of inventing another one.
+- System events in the chat are centred `text-xs` lines. Milestones (confirmed, invoice created, deposit, balance, paid in full, shipped, photo approved) get `bg-emerald-50` and a check icon. Alerts get `bg-amber-50`.
+
+## Icons
+
+Use `<Icon name=… />` from `components/Icon.tsx` (24 px line icons, 1.75 stroke, `currentColor`, size 14-18). Do not use emoji as icons in the UI. If an icon is missing, add a path to `Icon.tsx` in the same style. Icon-only buttons need `aria-label` and `title` in the viewer's language.
+
+## Motion
+
+Only the existing small transitions: `transition-colors` on buttons, the progress-bar width, `animate-pulse` for "interpreting…" text and the recording dot, `animate-spin` on the refresh icon while checking, and the amber `cite-flash` when a citation is clicked. No other animation.
+
+## Checklist for new UI (FEAT-004 judge mode and mobile, FEAT-005 production board)
+
+- Built from `ui.*` tokens, `Icon` and the colours above; no new hues, no emoji icons.
+- One primary button per card; finished or empty states fold away or render nothing.
+- Every string in en, hi and es; check Hindi at 390 px width for wrapping.
+- `/demo`: two room iframes on `bg-stone-50`, each in a `rounded-2xl ring-1 ring-stone-200` frame with a small `ui.meta` caption (Maker · हिंदी, Buyer · English) above it, and "Start over" as a `ui.btnSecondary` in a slim header. They stack below `lg`.
+- Production board: a white `ui.card`. Row states use the same language as the payment milestones: done = emerald check circle, ready = hollow emerald ring, locked = `Icon name="lock"` in `stone-400` with the row text in `stone-400`. Bars are `bg-emerald-600` (done) or `bg-emerald-200` (ready) or `bg-stone-200` (locked). Gates are diamonds in the same colours. The deadline is a thin `red-500` line. Keep the `board-row-<key>` test ids and `data-state`.
+- Before asking the user to look, take a screenshot and check it against this file.

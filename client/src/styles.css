@@ -1,15 +1,30 @@
 @import "tailwindcss";
 
+/* Design rules: docs/design.md. Tokens beyond the Tailwind palette live here. */
 @theme {
   --font-sans: "Noto Sans", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
+  --color-paypal: #0070ba;
+  --color-paypal-dark: #005ea6;
 }
 
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* A citation chip was clicked: the message it points at glows amber twice. */
 @keyframes cite-flash {
-  0% { box-shadow: 0 0 0 0 rgb(245 158 11 / 0.9); }
-  100% { box-shadow: 0 0 0 10px rgb(245 158 11 / 0); }
+  0% { box-shadow: 0 0 0 0 rgb(251 191 36 / 0.8); }
+  100% { box-shadow: 0 0 0 10px rgb(251 191 36 / 0); }
 }
 
 .cite-flash {
   animation: cite-flash 0.9s ease-out 2;
-  outline: 2px solid rgb(245 158 11);
+  outline: 2px solid rgb(251 191 36);
+  outline-offset: 2px;
+}
+
+/* Thin, quiet scrollbars for the chat and the side panel. */
+.scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(214 211 209) transparent;
 }
