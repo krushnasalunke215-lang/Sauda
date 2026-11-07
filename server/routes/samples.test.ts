@@ -67,4 +67,14 @@ describe('sample clips', () => {
     expect(served.headers['content-type']).toBe('audio/mp4');
     expect(served.rawPayload.equals(sample)).toBe(true);
   });
+
+  it('serves a sample file by id, and 404 for an unknown id', async () => {
+    t = await testApp();
+    const res = await t.app.inject({ method: 'GET', url: '/api/samples/hindi-order/file' });
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toBe('audio/mp4');
+    expect(res.rawPayload.equals(readFileSync(path.join(ROOT_DIR, 'samples', 'hindi-order.m4a')))).toBe(true);
+    expect((await t.app.inject({ method: 'GET', url: '/api/samples/nope/file' })).statusCode).toBe(404);
+    expect((await t.app.inject({ method: 'GET', url: '/api/samples/..%2Fpackage/file' })).statusCode).toBe(400);
+  });
 });

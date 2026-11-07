@@ -85,6 +85,24 @@ export type MessageStatus = 'pending' | 'interpreting' | 'done' | 'failed';
 
 export type EventParams = Record<string, string | number | boolean | null>;
 
+/** Every system event type the server posts (each needs an `event.<type>` string in en, hi and es). */
+export const EVENT_TYPES = [
+  'deal_created',
+  'confirmed',
+  'agreement_confirmed',
+  'terms_changed',
+  'progress_approved',
+  'progress_changes_requested',
+  'invoice_created',
+  'deposit_received',
+  'balance_received',
+  'paid_in_full',
+  'invoice_cancelled',
+  'invoice_text_changed',
+  'shipped',
+  'reminder_sent',
+] as const;
+
 /** A typed system event; the client renders it in the viewer's language. */
 export interface SystemEvent {
   type: string;

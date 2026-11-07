@@ -1,5 +1,6 @@
 import { GoogleGenAI, ThinkingLevel, type Part } from '@google/genai';
 import type { GeminiConfig } from '../config.js';
+import type { Reserve } from './budget.js';
 
 export type { Part };
 
@@ -54,6 +55,8 @@ export type ModelSettings = Pick<GeminiConfig, 'fastModel' | 'fallbackModel' | '
 export interface GenerateDeps {
   callModel: CallModel;
   settings: ModelSettings;
+  /** The daily AI budget: each model attempt reserves a call first (throws AiBudgetError when used up). */
+  budget?: Reserve | null;
 }
 
 export function createGenAI(config: GeminiConfig): GoogleGenAI {
@@ -123,7 +126,8 @@ async function attempt<T>(
 
 /**
  * Asks the fast model (thinking LOW, short timeout) first; on a timeout, an error, unparseable JSON or
- * a schema failure it asks the fallback model (default thinking, longer timeout).
+ * a schema failure it asks the fallback model (default thinking, longer timeout). Each attempt
+ * reserves one call from the daily budget first.
  */
 export async function generateJson<T>(
   req: { label: string; parts: Part[]; system: string; schema: object; validate: Validate },
@@ -132,9 +136,11 @@ export async function generateJson<T>(
   const { settings, callModel } = deps;
   const t0 = performance.now();
   const attempts: Attempt[] = [];
+  deps.budget?.reserve();
   const fast = await attempt<T>(settings.fastModel, true, settings.fastTimeoutMs, req, callModel);
   attempts.push(fast.attempt);
   if (fast.data !== undefined) return { data: fast.data, model: settings.fastModel, ms: Math.round(performance.now() - t0), fallback: false, attempts };
+  deps.budget?.reserve();
   const slow = await attempt<T>(settings.fallbackModel, false, settings.fallbackTimeoutMs, req, callModel);
   attempts.push(slow.attempt);
   if (slow.data !== undefined) return { data: slow.data, model: settings.fallbackModel, ms: Math.round(performance.now() - t0), fallback: true, attempts };

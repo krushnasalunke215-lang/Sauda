@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { depositPaid, otherRole, type DealView, type Lang, type Message, type PhotoKind, type SampleInfo } from '../../../shared/types.js';
+import { depositPaid, fullyPaid, otherRole, type DealView, type Lang, type Message, type PhotoKind, type SampleInfo } from '../../../shared/types.js';
 import { ApiError, api, upload } from '../api.js';
 import { playUrl, speak } from '../audio/speech.js';
 import { AgreementPanel } from '../components/AgreementPanel.js';
@@ -65,6 +65,30 @@ function InviteMenu({ url, lang }: { url: string; lang: Lang }) {
       </div>
     </details>
   );
+}
+
+/** Sample English messages for the buyer (judges tap one instead of typing). */
+export const BUYER_SAMPLE_TEXTS: readonly string[] = [
+  'Hi! I would like a light green chikankari kurta, size medium, 44 inches long, by December 10.',
+  'Does the 120 dollars include shipping to Ohio?',
+  'Looks great, approved!',
+];
+
+const MOBILE_TABS = ['chat', 'agreement', 'pay', 'timeline'] as const;
+type MobileTab = (typeof MOBILE_TABS)[number];
+
+/** True below 768 px (Tailwind's md breakpoint). */
+function useNarrow(): boolean {
+  const query = '(max-width: 767.98px)';
+  const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setNarrow(mq.matches);
+    on();
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return narrow;
 }
 
 type Sound = 'unset' | 'on' | 'off';
@@ -135,6 +159,8 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
   const [samples, setSamples] = useState<SampleInfo[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTab] = useState<'deal' | 'timeline'>('deal');
+  const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
+  const narrow = useNarrow();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   /** Keeps whichever snapshot is newer (socket pushes and HTTP responses can cross). */
@@ -158,7 +184,7 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
   useEffect(() => {
     if (!role) return;
     api<SampleInfo[]>('/api/samples')
-      .then((all) => setSamples(all.filter((s) => s.kind === 'voice' && s.role === role)))
+      .then((all) => setSamples(all.filter((s) => s.role === role)))
       .catch(() => setSamples([]));
   }, [role]);
 
@@ -182,7 +208,9 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
   const { sound, setSound } = useAutoPlay(view, say);
 
   const cite = useCallback((seq: number) => {
-    document.getElementById(`msg-${seq}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // In the mobile layout the message may be on the chat tab, which renders on the next frame.
+    setMobileTab('chat');
+    requestAnimationFrame(() => document.getElementById(`msg-${seq}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
     setHighlight(seq);
     clearTimeout(timer.current);
     timer.current = setTimeout(() => setHighlight(null), 2000);
@@ -236,9 +264,118 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
 
   const soundLabel = t(lang, sound === 'on' ? 'sound.on' : 'sound.off');
 
+  // The built-in sample photo for this role (buyer: reference, maker: progress), uploaded like a picked file.
+  const samplePhoto = samples.find((s) => s.kind === 'photo');
+  const onSamplePhoto =
+    samplePhoto && photoKind
+      ? async () => {
+          const kind = photoKind;
+          return (
+            (await startTurn(async () => {
+              const res = await fetch(`/api/samples/${encodeURIComponent(samplePhoto.id)}/file`);
+              if (!res.ok) throw new ApiError(res.status, 'sample_not_found');
+              const blob = await res.blob();
+              return upload<{ messageId: string }>(`/api/deals/${dealId}/photos?kind=${kind}`, { token, body: blob, contentType: blob.type || 'image/jpeg' });
+            })) !== null
+          );
+        }
+      : undefined;
+  // Sample English messages for the buyer while the terms are still open.
+  const sampleTexts = view.role === 'buyer' && lang === 'en' && !view.invoice ? BUYER_SAMPLE_TEXTS : [];
+
+  const notices = (error || notice) && (
+    <div className="space-y-1.5 px-4 pt-2 sm:px-5">
+      {error && (
+        <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800" data-testid="room-error">
+          <Icon name="alert" />
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="speech-notice">
+          {notice}
+        </p>
+      )}
+    </div>
+  );
+
+  const chat = (
+    <ChatPanel
+      view={view}
+      lang={lang}
+      highlight={highlight}
+      actions={{
+        onRetry: (id) => void run(() => api(`/api/deals/${dealId}/turns/${id}/retry`, { method: 'POST', token })),
+        mediaUrl,
+        onListen: (m) => void say(m),
+        onDecide: (mid, approve) => void run(() => api<DealView>(`/api/deals/${dealId}/photos/${mid}/decision`, { token, body: { approve } })),
+      }}
+    />
+  );
+
+  const composer = (
+    <Composer
+      lang={lang}
+      otherName={other.name}
+      messages={view.messages}
+      samples={samples.filter((s) => s.kind === 'voice')}
+      photoKind={photoKind}
+      sampleTexts={sampleTexts}
+      onSamplePhoto={onSamplePhoto}
+      onSend={(text) => run(() => api(`/api/deals/${dealId}/turns`, { token, body: { text } }))}
+      onVoice={(blob, contentType) => startTurn(() => upload(`/api/deals/${dealId}/turns`, { token, body: blob, contentType }))}
+      onSample={(id) => startTurn(() => api(`/api/deals/${dealId}/turns?sample=${encodeURIComponent(id)}`, { method: 'POST', token }))}
+      onPhoto={async (kind, jpeg) =>
+        (await startTurn(() => upload(`/api/deals/${dealId}/photos?kind=${kind}`, { token, body: jpeg, contentType: jpeg.type || 'image/jpeg' }))) !== null
+      }
+    />
+  );
+
+  const payment = (
+    <PaymentPanel
+      view={view}
+      lang={lang}
+      onRefresh={() => run(() => api<DealView>(`/api/deals/${dealId}/refresh-payment`, { method: 'POST', token }))}
+      onRemind={() => run(() => api(`/api/deals/${dealId}/proposals`, { token, body: { tool: 'send_reminder' } }))}
+    />
+  );
+
+  const proposals = (
+    <ProposalsPanel
+      view={view}
+      lang={lang}
+      actions={{
+        onApprove: (pid, args) => run(() => api(`/api/deals/${dealId}/proposals/${pid}/approve`, { token, body: args ? { args } : {} })),
+        onReject: (pid) => run(() => api<DealView>(`/api/deals/${dealId}/proposals/${pid}/reject`, { method: 'POST', token })),
+      }}
+      onProposeTracking={(carrier, trackingNumber) =>
+        run(() => api(`/api/deals/${dealId}/proposals`, { token, body: { tool: 'add_tracking', args: { carrier, trackingNumber } } }))
+      }
+    />
+  );
+
+  const agreement = (
+    <AgreementPanel view={view} lang={lang} onCite={cite}>
+      <QuestionsPanel
+        view={view}
+        lang={lang}
+        onCite={cite}
+        onDismiss={(qid) => void run(() => api<DealView>(`/api/deals/${dealId}/questions/${qid}/dismiss`, { method: 'POST', token }))}
+      />
+      <ConfirmCard
+        view={view}
+        lang={lang}
+        onConfirm={() => run(() => api<DealView>(`/api/deals/${dealId}/confirm`, { token, body: { hash: view.agreement.hash } }))}
+      />
+    </AgreementPanel>
+  );
+
+  // Below 768 px the buyer gets one column with tabs and a sticky composer; the maker keeps the stacked columns.
+  const mobile = narrow && view.role === 'buyer';
+
   return (
     <JudgeMode.Provider value={judge}>
-    <div className="flex min-h-dvh flex-col" data-testid="room" data-role={view.role} data-lang={lang} data-judge={judge ? 'on' : 'off'}>
+    <div className="flex min-h-dvh flex-col" data-testid="room" data-role={view.role} data-lang={lang} data-judge={judge ? 'on' : 'off'} data-layout={mobile ? 'tabs' : 'columns'}>
       <header className="sticky top-0 z-20 h-14 shrink-0 border-b border-stone-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-full max-w-7xl items-center gap-3 px-4 sm:gap-4">
           <span className="text-base font-bold tracking-tight text-stone-900">{t(lang, 'app.name')}</span>
@@ -279,108 +416,90 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
         </div>
       </header>
 
-      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem)] lg:flex-none lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[minmax(0,1fr)]">
-        <section className={`${ui.card} flex min-h-[70vh] flex-col overflow-hidden lg:min-h-0`}>
-          <ChatPanel
-            view={view}
-            lang={lang}
-            highlight={highlight}
-            actions={{
-              onRetry: (id) => void run(() => api(`/api/deals/${dealId}/turns/${id}/retry`, { method: 'POST', token })),
-              mediaUrl,
-              onListen: (m) => void say(m),
-              onDecide: (mid, approve) => void run(() => api<DealView>(`/api/deals/${dealId}/photos/${mid}/decision`, { token, body: { approve } })),
-            }}
-          />
-          {(error || notice) && (
-            <div className="space-y-1.5 px-4 pt-2 sm:px-5">
-              {error && (
-                <p className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-800" data-testid="room-error">
-                  <Icon name="alert" />
-                  {error}
-                </p>
-              )}
-              {notice && (
-                <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900" data-testid="speech-notice">
-                  {notice}
-                </p>
-              )}
+      {mobile ? (
+        <>
+          <div className="sticky top-14 z-10 bg-stone-50 px-3 pt-3">
+            <div className="flex gap-1 rounded-xl bg-stone-200/60 p-1 text-sm" role="tablist">
+              {MOBILE_TABS.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={mobileTab === k}
+                  data-testid={`mobile-tab-${k}`}
+                  onClick={() => setMobileTab(k)}
+                  className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 py-1.5 font-medium transition-colors ${
+                    mobileTab === k ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-900'
+                  }`}
+                >
+                  <span className="truncate">{t(lang, `mtab.${k}`)}</span>
+                  {k === 'pay' && view.invoice && !fullyPaid(view) && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />}
+                </button>
+              ))}
             </div>
-          )}
-          <Composer
-            lang={lang}
-            otherName={other.name}
-            messages={view.messages}
-            samples={samples}
-            photoKind={photoKind}
-            onSend={(text) => run(() => api(`/api/deals/${dealId}/turns`, { token, body: { text } }))}
-            onVoice={(blob, contentType) => startTurn(() => upload(`/api/deals/${dealId}/turns`, { token, body: blob, contentType }))}
-            onSample={(id) => startTurn(() => api(`/api/deals/${dealId}/turns?sample=${encodeURIComponent(id)}`, { method: 'POST', token }))}
-            onPhoto={async (kind, jpeg) =>
-              (await startTurn(() => upload(`/api/deals/${dealId}/photos?kind=${kind}`, { token, body: jpeg, contentType: jpeg.type || 'image/jpeg' }))) !== null
-            }
-          />
-        </section>
-
-        <aside className="scroll-quiet flex min-h-0 flex-col gap-4 lg:-mr-2 lg:overflow-y-auto lg:pr-2">
-          <div className="flex shrink-0 gap-1 rounded-xl bg-stone-200/60 p-1 text-sm" role="tablist">
-            {(['deal', 'timeline'] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={tab === k}
-                data-testid={`tab-${k}`}
-                onClick={() => setTab(k)}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors ${
-                  tab === k ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                {t(lang, `tab.${k}`)}
-                {k === 'timeline' && view.timeline.length > 0 && (
-                  <span className="rounded-full bg-stone-100 px-1.5 text-[11px] font-medium text-stone-500">{view.timeline.length}</span>
-                )}
-              </button>
-            ))}
           </div>
-          {tab === 'timeline' ? (
-            <MoneyTimeline view={view} lang={lang} />
-          ) : (
-            <>
-              <PaymentPanel
-                view={view}
-                lang={lang}
-                onRefresh={() => run(() => api<DealView>(`/api/deals/${dealId}/refresh-payment`, { method: 'POST', token }))}
-                onRemind={() => run(() => api(`/api/deals/${dealId}/proposals`, { token, body: { tool: 'send_reminder' } }))}
-              />
-              <ProposalsPanel
-                view={view}
-                lang={lang}
-                actions={{
-                  onApprove: (pid, args) => run(() => api(`/api/deals/${dealId}/proposals/${pid}/approve`, { token, body: args ? { args } : {} })),
-                  onReject: (pid) => run(() => api<DealView>(`/api/deals/${dealId}/proposals/${pid}/reject`, { method: 'POST', token })),
-                }}
-                onProposeTracking={(carrier, trackingNumber) =>
-                  run(() => api(`/api/deals/${dealId}/proposals`, { token, body: { tool: 'add_tracking', args: { carrier, trackingNumber } } }))
-                }
-              />
-              <AgreementPanel view={view} lang={lang} onCite={cite}>
-                <QuestionsPanel
-                  view={view}
-                  lang={lang}
-                  onCite={cite}
-                  onDismiss={(qid) => void run(() => api<DealView>(`/api/deals/${dealId}/questions/${qid}/dismiss`, { method: 'POST', token }))}
-                />
-                <ConfirmCard
-                  view={view}
-                  lang={lang}
-                  onConfirm={() => run(() => api<DealView>(`/api/deals/${dealId}/confirm`, { token, body: { hash: view.agreement.hash } }))}
-                />
-              </AgreementPanel>
-            </>
-          )}
-        </aside>
-      </div>
+          <main className="flex flex-1 flex-col gap-3 p-3" data-testid={`mobile-panel-${mobileTab}`}>
+            {mobileTab === 'chat' && <section className={`${ui.card} flex flex-1 flex-col overflow-hidden`}>{chat}</section>}
+            {mobileTab === 'agreement' && agreement}
+            {mobileTab === 'pay' &&
+              (view.invoice || view.proposals.length > 0 ? (
+                <>
+                  {payment}
+                  {proposals}
+                </>
+              ) : (
+                <p className={`${ui.meta} px-2 py-8 text-center`} data-testid="pay-empty">
+                  {t(lang, 'pay.empty')}
+                </p>
+              ))}
+            {mobileTab === 'timeline' && <MoneyTimeline view={view} lang={lang} />}
+          </main>
+          <div className="sticky bottom-0 z-10 border-t border-stone-200 bg-white" data-testid="mobile-composer">
+            {notices}
+            {composer}
+          </div>
+        </>
+      ) : (
+        <div className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem)] lg:flex-none lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[minmax(0,1fr)]">
+          <section className={`${ui.card} flex min-h-[70vh] flex-col overflow-hidden lg:min-h-0`}>
+            {chat}
+            {notices}
+            {composer}
+          </section>
+
+          <aside className="scroll-quiet flex min-h-0 flex-col gap-4 lg:-mr-2 lg:overflow-y-auto lg:pr-2">
+            <div className="flex shrink-0 gap-1 rounded-xl bg-stone-200/60 p-1 text-sm" role="tablist">
+              {(['deal', 'timeline'] as const).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === k}
+                  data-testid={`tab-${k}`}
+                  onClick={() => setTab(k)}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors ${
+                    tab === k ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-900'
+                  }`}
+                >
+                  {t(lang, `tab.${k}`)}
+                  {k === 'timeline' && view.timeline.length > 0 && (
+                    <span className="rounded-full bg-stone-100 px-1.5 text-[11px] font-medium text-stone-500">{view.timeline.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            {tab === 'timeline' ? (
+              <MoneyTimeline view={view} lang={lang} />
+            ) : (
+              <>
+                {payment}
+                {proposals}
+                {agreement}
+              </>
+            )}
+          </aside>
+        </div>
+      )}
     </div>
     </JudgeMode.Provider>
   );

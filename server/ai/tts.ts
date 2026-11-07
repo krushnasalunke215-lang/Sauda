@@ -1,5 +1,6 @@
 import type { GoogleGenAI } from '@google/genai';
 import type { Lang } from '../../shared/types.js';
+import type { Reserve } from './budget.js';
 
 /** Gemini text-to-speech model, used only when the listener's browser has no voice for the language. */
 export const TTS_MODEL = 'gemini-3.8-flash-tts';
@@ -72,6 +73,10 @@ export async function synthesize(ai: GoogleGenAI, text: string, lang: Lang): Pro
 /** Synthesizes a message's translation. Injected so tests can fake it. */
 export type Speak = (text: string, lang: Lang) => Promise<Buffer>;
 
-export function createSpeak(ai: GoogleGenAI): Speak {
-  return async (text, lang) => (await synthesize(ai, text, lang)).wav;
+/** Each synthesis reserves one call from the daily AI budget first (AiBudgetError when used up). */
+export function createSpeak(ai: GoogleGenAI, budget?: Reserve | null): Speak {
+  return async (text, lang) => {
+    budget?.reserve();
+    return (await synthesize(ai, text, lang)).wav;
+  };
 }

@@ -1,9 +1,11 @@
 import { existsSync } from 'node:fs';
+import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import path from 'node:path';
 import { ApprovalService, createPayPalOps } from './agent/approvals.js';
 import type { PayPalOps } from './agent/proposals.js';
+import type { AiBudget } from './ai/budget.js';
 import type { Interpreter } from './ai/interpret.js';
 import { MAX_AUDIO_BYTES, MAX_IMAGE_BYTES } from './ai/media.js';
 import type { Speak } from './ai/tts.js';
@@ -40,7 +42,45 @@ export interface AppDeps {
    * Agent Toolkit. null turns PayPal off. By default the client is built from config.paypal.
    */
   paypal?: { fetch?: typeof fetch; ops?: Partial<PayPalOps>; toolkit?: ToolkitFactory } | null;
+  /** The daily AI call budget shown on /healthz (the model calls reserve from it). */
+  budget?: AiBudget | null;
+  /** Lower rate limits for tests. */
+  rateLimits?: Partial<RateLimits>;
 }
+
+export interface Limit {
+  max: number;
+  timeWindow: string;
+}
+
+/** Per-IP request limits (in memory) for the public demo. */
+export interface RateLimits {
+  global: Limit;
+  createDeal: Limit;
+  turns: Limit;
+  photos: Limit;
+  approve: Limit;
+  refreshPayment: Limit;
+}
+
+export const RATE_LIMITS: RateLimits = {
+  global: { max: 300, timeWindow: '1 minute' },
+  createDeal: { max: 20, timeWindow: '1 hour' },
+  turns: { max: 30, timeWindow: '10 minutes' },
+  photos: { max: 12, timeWindow: '10 minutes' },
+  approve: { max: 20, timeWindow: '1 hour' },
+  refreshPayment: { max: 12, timeWindow: '1 minute' },
+};
+
+/** Route method + URL pattern → the limit (and group, so a turn and its retry share one counter). */
+const ROUTE_LIMITS: { method: string; url: string; limit: keyof RateLimits; group?: string }[] = [
+  { method: 'POST', url: '/api/deals', limit: 'createDeal' },
+  { method: 'POST', url: '/api/deals/:id/turns', limit: 'turns', group: 'turns' },
+  { method: 'POST', url: '/api/deals/:id/turns/:mid/retry', limit: 'turns', group: 'turns' },
+  { method: 'POST', url: '/api/deals/:id/photos', limit: 'photos' },
+  { method: 'POST', url: '/api/deals/:id/proposals/:pid/approve', limit: 'approve' },
+  { method: 'POST', url: '/api/deals/:id/refresh-payment', limit: 'refreshPayment' },
+];
 
 export interface Payments {
   client: PayPalClient | null;
@@ -104,9 +144,24 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     return payload;
   });
 
+  // Rate limits: the route table above sets each route's limit as it is added; /healthz is exempt
+  // (Render's health checks). Keyed by the client IP, which trustProxy reads from X-Forwarded-For.
+  const limits: RateLimits = { ...RATE_LIMITS, ...deps.rateLimits };
+  app.addHook('onRoute', (route) => {
+    if (route.url === '/healthz') {
+      route.config = { ...route.config, rateLimit: false } as typeof route.config;
+      return;
+    }
+    const methods = Array.isArray(route.method) ? route.method : [route.method];
+    const hit = ROUTE_LIMITS.find((r) => r.url === route.url && methods.includes(r.method as (typeof methods)[number]));
+    if (hit) route.config = { ...route.config, rateLimit: { ...limits[hit.limit], ...(hit.group ? { groupId: hit.group } : {}) } } as typeof route.config;
+  });
+  await app.register(rateLimit, { global: true, ...limits.global });
+
   app.setErrorHandler((err: FastifyError, req, reply) => {
     if (err instanceof ServiceError) return reply.code(err.status).send({ error: err.code, ...(err.details ? { details: err.details } : {}) });
     if (err instanceof DealNotFoundError) return reply.code(404).send({ error: 'not_found' });
+    if (err.statusCode === 429) return reply.code(429).send({ error: 'rate_limited' });
     if (err.validation) return reply.code(400).send({ error: 'invalid_request', message: err.message });
     if (err.statusCode && err.statusCode < 500) return reply.code(err.statusCode).send({ error: err.code ?? 'bad_request' });
     req.log.error({ err: { name: err.name, message: err.message, stack: err.stack } }, 'unhandled error');
@@ -115,7 +170,12 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
 
   const payments = buildPayments(deps, app.log);
 
-  healthRoutes(app, deps.config, () => payments.webhooks.status());
+  healthRoutes(
+    app,
+    deps.config,
+    () => payments.webhooks.status(),
+    () => deps.budget?.status() ?? { callsToday: 0, limit: deps.config.aiDailyCallLimit },
+  );
   dealRoutes(app, { store: deps.store, service, samples, publicBaseUrl: deps.config.publicBaseUrl });
   mediaRoutes(app, { store: deps.store, service });
   photoRoutes(app, { store: deps.store, service, publicBaseUrl: deps.config.publicBaseUrl });

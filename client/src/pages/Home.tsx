@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { LANGS, type CreateDealResult, type Lang } from '../../../shared/types.js';
+import { LANGS, type CreateDealInput, type CreateDealResult, type Lang } from '../../../shared/types.js';
 import { ApiError, api } from '../api.js';
 import { CopyButton } from '../components/CopyButton.js';
 import { Icon } from '../components/Icon.js';
@@ -59,18 +59,23 @@ function LinkRow({ label, url, open, testId }: { label: string; url: string; ope
         </code>
       </div>
       <CopyButton text={url} label={t(UI, 'home.copy')} done={t(UI, 'home.copied')} />
-      <a data-testid={`${testId}-open`} href={url} target="_blank" rel="noopener noreferrer" className={`${ui.btnPrimary} px-3 py-1.5 text-xs`}>
+      <a data-testid={`${testId}-open`} href={url} target="_blank" rel="noopener noreferrer" className={`${ui.btnSecondary} px-3 py-1.5 text-xs`}>
         {open}
       </a>
     </div>
   );
 }
 
+/** The default parties, used by the form and by the /demo split screen. */
+export const DEMO_DEAL: CreateDealInput = { makerName: 'Asha Chikan Studio', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' };
+
+const STEPS = ['home.step1', 'home.step2', 'home.step3', 'home.step4', 'home.step5'] as const;
+
 export function Home() {
-  const [makerName, setMakerName] = useState('Asha Chikan Studio');
-  const [makerLang, setMakerLang] = useState<Lang>('hi');
-  const [buyerName, setBuyerName] = useState('Emily Carter');
-  const [buyerLang, setBuyerLang] = useState<Lang>('en');
+  const [makerName, setMakerName] = useState(DEMO_DEAL.makerName);
+  const [makerLang, setMakerLang] = useState<Lang>(DEMO_DEAL.makerLang);
+  const [buyerName, setBuyerName] = useState(DEMO_DEAL.buyerName);
+  const [buyerLang, setBuyerLang] = useState<Lang>(DEMO_DEAL.buyerLang);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CreateDealResult | null>(null);
@@ -97,7 +102,12 @@ export function Home() {
         <h1 className="text-4xl font-bold tracking-tight text-stone-900">
           {t(UI, 'app.name')} <span className="text-emerald-700">सौदा</span>
         </h1>
-        <p className="mx-auto mt-3 max-w-sm text-base leading-relaxed text-stone-600">{t(UI, 'app.tagline')}</p>
+        <p data-testid="home-problem" className="mx-auto mt-3 max-w-md text-base leading-relaxed text-stone-600">
+          {t(UI, 'home.problem')}
+        </p>
+        <a data-testid="try-demo" href="/demo" className={`${ui.btnPrimary} mt-8`}>
+          {t(UI, 'home.tryDemo')}
+        </a>
       </header>
 
       <form onSubmit={submit} className={`${ui.card} mt-10 p-6 sm:p-8`}>
@@ -107,7 +117,7 @@ export function Home() {
           <PartyFields title={t(UI, 'role.maker')} name={makerName} lang={makerLang} onName={setMakerName} onLang={setMakerLang} testId="maker" />
           <PartyFields title={t(UI, 'role.buyer')} name={buyerName} lang={buyerLang} onName={setBuyerName} onLang={setBuyerLang} testId="buyer" />
         </div>
-        <button data-testid="create-deal" type="submit" disabled={busy} className={`${ui.btnPrimary} mt-8 w-full`}>
+        <button data-testid="create-deal" type="submit" disabled={busy} className={`${ui.btnSecondary} mt-8 w-full`}>
           {busy ? t(UI, 'home.creating') : t(UI, 'home.create')}
         </button>
         {error && (
@@ -124,6 +134,19 @@ export function Home() {
           <LinkRow label={t(UI, 'home.buyerLink')} url={abs(result.buyer.url)} open={t(UI, 'home.openBuyer')} testId="buyer" />
         </section>
       )}
+
+      <section className="mt-10 px-1" data-testid="home-steps">
+        <h2 className={ui.title}>{t(UI, 'home.stepsTitle')}</h2>
+        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-stone-600">
+          {STEPS.map((k) => (
+            <li key={k}>{t(UI, k)}</li>
+          ))}
+        </ol>
+      </section>
+
+      <footer className={`${ui.meta} mt-12 text-center`} data-testid="home-footer">
+        {t(UI, 'home.footer')}
+      </footer>
     </main>
   );
 }

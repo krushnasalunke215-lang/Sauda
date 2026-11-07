@@ -1,5 +1,6 @@
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
+import { AiBudget } from './ai/budget.js';
 import { createGenAI, sdkCallModel } from './ai/gemini.js';
 import { createInterpreter } from './ai/interpret.js';
 import { createSpeak } from './ai/tts.js';
@@ -15,13 +16,14 @@ const config = loadConfig();
 mkdirSync(config.dataDir, { recursive: true });
 const db = openDb(path.join(config.dataDir, 'sauda.db'));
 const store = new DealStore(db);
+const budget = new AiBudget(db, config.aiDailyCallLimit);
 const genai = geminiConfigured(config) ? createGenAI(config.gemini) : null;
-const generate = genai ? { callModel: sdkCallModel(genai), settings: config.gemini } : null;
+const generate = genai ? { callModel: sdkCallModel(genai), settings: config.gemini, budget } : null;
 const interpret = generate ? createInterpreter(generate) : null;
 const vision = generate ? createVision(generate) : null;
-const speak = genai ? createSpeak(genai) : null;
+const speak = genai ? createSpeak(genai, budget) : null;
 
-const { app, service, payments } = await buildApp({ config, store, interpret, vision, speak, staticDir: path.join(ROOT_DIR, 'dist', 'client') });
+const { app, service, payments } = await buildApp({ config, store, interpret, vision, speak, budget, staticDir: path.join(ROOT_DIR, 'dist', 'client') });
 const io = attachRealtime(app, store, config.publicBaseUrl, { onJoin: (dealId) => payments.sync.onJoin(dealId) });
 const poller = new InvoicePoller({ store, sync: payments.sync, intervalMs: config.paypal.pollIntervalMs, log: app.log });
 

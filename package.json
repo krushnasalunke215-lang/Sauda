@@ -24,6 +24,7 @@
     "secret-scan": "node scripts/secret-scan.mjs"
   },
   "dependencies": {
+    "@fastify/rate-limit": "^11.2.2",
     "@fastify/static": "^10.1.10",
     "@google/genai": "^3.0.0",
     "@paypal/agent-toolkit": "^1.11.0",

@@ -14,6 +14,7 @@ import {
   type Role,
 } from '../../shared/types.js';
 import { markStale, proposeFromIntent, proposeInvoice } from '../agent/proposals.js';
+import { AiBudgetError } from '../ai/budget.js';
 import { AiUnavailableError } from '../ai/gemini.js';
 import type { Interpreter, TurnInput, TurnResult } from '../ai/interpret.js';
 import { extFor, normalizeAudioMime, normalizeImageMime, type AudioMime, type ImageMime } from '../ai/media.js';
@@ -64,8 +65,18 @@ export interface AudioInput {
 
 export const MAX_TEXT_CHARS = 1000;
 export const MAX_NAME_CHARS = 60;
+/** Per-deal caps for the public demo: messages from the parties (system events do not count) and photos. */
+export const MAX_MESSAGES_PER_DEAL = 200;
+export const MAX_PHOTOS_PER_DEAL = 20;
 
 const chars = (s: string) => Array.from(s).length;
+
+/** 409 when the deal already holds the most party messages (or photos) it may have. */
+function checkCaps(d: Deal, photo: boolean): void {
+  const own = d.messages.filter((m) => m.from !== 'system');
+  if (own.length >= MAX_MESSAGES_PER_DEAL) throw new ServiceError(409, 'message_limit', { max: MAX_MESSAGES_PER_DEAL });
+  if (photo && own.filter((m) => m.kind === 'photo').length >= MAX_PHOTOS_PER_DEAL) throw new ServiceError(409, 'photo_limit', { max: MAX_PHOTOS_PER_DEAL });
+}
 
 function pushMessage(d: Deal, m: Omit<Message, 'id' | 'seq' | 'createdAt'>, now: Date): Message {
   const seq = d.nextSeq++;
@@ -122,6 +133,7 @@ export class DealService {
     if (!this.deps.interpret) throw new ServiceError(503, 'ai_not_configured');
     let msg!: Message;
     await this.deps.store.update(dealId, (d) => {
+      checkCaps(d, false);
       msg = pushMessage(d, { from: role, kind: 'text', status: 'pending', original: { text: t, lang: d.parties[role].lang } }, this.now());
     });
     this.track(this.interpretMessage(dealId, msg.id, role, { text: t }));
@@ -137,6 +149,7 @@ export class DealService {
     if (!audio.data.length) throw new ServiceError(400, 'empty_audio');
     let msg!: Message;
     await this.deps.store.update(dealId, async (d) => {
+      checkCaps(d, false);
       const id = `m${d.nextSeq}`;
       const media = await this.saveMedia(dealId, id, extFor(audio.mimeType), audio.data, audio.mimeType);
       msg = pushMessage(d, { from: role, kind: 'voice', status: 'pending', media, ...(opts.sample ? { sample: opts.sample } : {}) }, this.now());
@@ -161,6 +174,7 @@ export class DealService {
         if (role !== 'maker') throw new ServiceError(403, 'maker_only');
         if (!depositPaid(d)) throw new ServiceError(409, 'deposit_not_paid');
       }
+      checkCaps(d, true);
       const id = `m${d.nextSeq}`;
       const media = await this.saveMedia(dealId, id, extFor(image.mimeType), image.data, image.mimeType);
       msg = pushMessage(d, { from: role, kind: 'photo', status: 'pending', media, photo: { kind } }, this.now());
@@ -227,6 +241,7 @@ export class DealService {
         try {
           wav = await speak(text, lang);
         } catch (e) {
+          if (e instanceof AiBudgetError) throw new ServiceError(503, 'ai_budget');
           this.deps.log?.warn({ dealId: deal.id, messageId, err: e instanceof Error ? e.message.slice(0, 200) : String(e) }, 'tts failed');
           throw new ServiceError(502, 'tts_failed');
         }
@@ -301,7 +316,7 @@ export class DealService {
       } catch (e) {
         const unavailable = e instanceof AiUnavailableError;
         this.deps.log?.warn({ dealId, messageId, kind, ...(unavailable ? { attempts: e.attempts } : { err: e instanceof Error ? e.message : String(e) }) }, 'photo failed');
-        await this.fail(dealId, messageId, unavailable ? 'ai_unavailable' : 'interpret_failed');
+        await this.fail(dealId, messageId, unavailable ? 'ai_unavailable' : e instanceof AiBudgetError ? 'ai_budget' : 'interpret_failed');
       }
     } catch (e) {
       this.deps.log?.warn({ dealId, messageId, err: e instanceof Error ? e.message : String(e) }, 'photo could not be saved');
@@ -362,6 +377,9 @@ export class DealService {
         if (e instanceof AiUnavailableError) {
           error = 'ai_unavailable';
           this.deps.log?.warn({ dealId, messageId, attempts: e.attempts }, 'turn failed: AI unavailable');
+        } else if (e instanceof AiBudgetError) {
+          error = 'ai_budget';
+          this.deps.log?.warn({ dealId, messageId, limit: e.limit }, 'turn failed: AI budget used up');
         } else this.deps.log?.warn({ dealId, messageId, err: e instanceof Error ? e.message : String(e) }, 'turn failed');
       }
       await store.update(dealId, (d) => {

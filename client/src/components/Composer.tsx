@@ -37,11 +37,17 @@ export interface ComposerProps {
   onVoice: (blob: Blob, contentType: string) => Promise<string | null>;
   onSample: (id: string) => Promise<string | null>;
   onPhoto: (kind: PhotoKind, jpeg: Blob) => Promise<boolean>;
+  /** Sample messages shown as chips above the input; a tap sends one. */
+  sampleTexts?: readonly string[];
+  /** Uploads the built-in sample photo for photoKind; absent when there is none. */
+  onSamplePhoto?: () => Promise<boolean>;
 }
 
-export function Composer({ lang, otherName, messages, samples, photoKind, onSend, onVoice, onSample, onPhoto }: ComposerProps) {
+export function Composer(props: ComposerProps) {
+  const { lang, otherName, messages, samples, photoKind, onSend, onVoice, onSample, onPhoto, sampleTexts = [], onSamplePhoto } = props;
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [samplePhotoBusy, setSamplePhotoBusy] = useState(false);
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [voiceId, setVoiceId] = useState<string | null>(null);
@@ -77,6 +83,20 @@ export function Composer({ lang, otherName, messages, samples, photoKind, onSend
     const ok = await onSend(v);
     setBusy(false);
     if (ok) setText('');
+  }
+
+  async function sendSample(v: string) {
+    if (busy) return;
+    setBusy(true);
+    await onSend(v);
+    setBusy(false);
+  }
+
+  async function sendSamplePhoto() {
+    if (!onSamplePhoto || samplePhotoBusy) return;
+    setSamplePhotoBusy(true);
+    await onSamplePhoto();
+    setSamplePhotoBusy(false);
   }
 
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
@@ -116,6 +136,15 @@ export function Composer({ lang, otherName, messages, samples, photoKind, onSend
 
   return (
     <div className="p-3 sm:p-4">
+      {sampleTexts.length > 0 && (
+        <div className="scroll-quiet -mx-1 mb-2 flex gap-1.5 overflow-x-auto px-1 pb-0.5" role="group" aria-label={t(lang, 'composer.sampleTexts')} data-testid="sample-texts">
+          {sampleTexts.map((s, i) => (
+            <button key={s} type="button" data-testid="sample-text" data-index={i} title={s} disabled={busy} onClick={() => void sendSample(s)} className={`${ui.chip} max-w-[18rem]`}>
+              <span className="truncate">{s}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="rounded-2xl bg-stone-50 ring-1 ring-stone-200 transition-shadow focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-600">
         <textarea
           data-testid="composer-input"
@@ -190,6 +219,22 @@ export function Composer({ lang, otherName, messages, samples, photoKind, onSend
               disabled={recording}
               onUpload={(jpeg) => onPhoto(photoKind, jpeg)}
             />
+          )}
+          {photoKind && onSamplePhoto && (
+            <button
+              type="button"
+              data-testid="sample-photo"
+              data-kind={photoKind}
+              disabled={recording || samplePhotoBusy}
+              onClick={() => void sendSamplePhoto()}
+              title={t(lang, photoKind === 'reference' ? 'photo.sampleReference' : 'photo.sampleProgress')}
+              className={ui.btnTool}
+            >
+              <Icon name="image" />
+              <span className="hidden sm:inline">
+                {samplePhotoBusy ? t(lang, 'photo.uploading') : t(lang, photoKind === 'reference' ? 'photo.sampleReference' : 'photo.sampleProgress')}
+              </span>
+            </button>
           )}
           {stage !== 'idle' && (
             <span data-testid="voice-stage" data-stage={stage} className={`px-1 text-xs ${stage === 'failed' ? 'text-red-700' : 'text-stone-500'}`}>

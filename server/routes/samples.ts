@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { LANGS, ROLES, type SampleInfo } from '../../shared/types.js';
-import { audioMimeFromFile, MEDIA_FILE_RE, type AudioMime } from '../ai/media.js';
+import { audioMimeFromFile, MEDIA_FILE_RE, serveType, type AudioMime } from '../ai/media.js';
+import { ServiceError } from '../deals/service.js';
+import { short } from './deals.js';
 
 interface SampleEntry extends SampleInfo {
   file: string;
@@ -42,6 +44,10 @@ export class SampleLibrary {
     return this.entries.find((e) => e.id === id) ?? null;
   }
 
+  readFile(entry: SampleEntry): Promise<Buffer> {
+    return readFile(path.join(this.dir, entry.file));
+  }
+
   async readAudio(entry: SampleEntry): Promise<{ mimeType: AudioMime; data: Buffer }> {
     const mimeType = audioMimeFromFile(entry.file);
     if (!mimeType) throw new Error(`sample ${entry.id} is not audio`);
@@ -51,4 +57,18 @@ export class SampleLibrary {
 
 export function sampleRoutes(app: FastifyInstance, samples: SampleLibrary): void {
   app.get('/api/samples', async () => samples.list());
+
+  /** The sample file itself, so the sample-photo buttons can upload it through the normal photo endpoint. */
+  app.get<{ Params: { sid: string } }>(
+    '/api/samples/:sid/file',
+    { schema: { params: { type: 'object', required: ['sid'], properties: { sid: short } } } },
+    async (req, reply) => {
+      const s = samples.get(req.params.sid);
+      if (!s) throw new ServiceError(404, 'sample_not_found');
+      return reply
+        .header('Content-Type', serveType(s.file))
+        .header('Cache-Control', 'public, max-age=3600')
+        .send(await samples.readFile(s));
+    },
+  );
 }

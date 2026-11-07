@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import type { CreateDealResult } from '../../shared/types.js';
+import { AiBudget } from '../ai/budget.js';
 import type { Interpreter, TurnResult } from '../ai/interpret.js';
 import type { Speak } from '../ai/tts.js';
 import type { Vision } from '../ai/vision.js';
@@ -72,6 +73,7 @@ export interface TestAppOptions {
   paypal?: AppDeps['paypal'];
   env?: Record<string, string>;
   now?: () => Date;
+  rateLimits?: AppDeps['rateLimits'];
 }
 
 export async function testApp(opts: TestAppOptions = {}): Promise<TestApp> {
@@ -80,7 +82,8 @@ export async function testApp(opts: TestAppOptions = {}): Promise<TestApp> {
     ? { PAYPAL_CLIENT_ID: 'fake-client-id', PAYPAL_CLIENT_SECRET: 'fake-client-secret', PAYPAL_MERCHANT_EMAIL: 'maker@example.test', PAYPAL_BUYER_EMAIL: 'buyer@example.test' }
     : {};
   const config = loadConfig({ env: { DATA_DIR: dataDir, ...paypalEnv, ...opts.env }, envFile: null });
-  const store = new DealStore(openDb(':memory:'));
+  const db = openDb(':memory:');
+  const store = new DealStore(db);
   const { app, service, payments } = await buildApp({
     config,
     store,
@@ -91,6 +94,8 @@ export async function testApp(opts: TestAppOptions = {}): Promise<TestApp> {
     staticDir: null,
     logger: false,
     now: opts.now,
+    budget: new AiBudget(db, config.aiDailyCallLimit, opts.now),
+    rateLimits: opts.rateLimits,
     paypal: opts.paypal ? { fetch: noPayPal, ...opts.paypal } : opts.paypal,
   });
   const idle = async () => {

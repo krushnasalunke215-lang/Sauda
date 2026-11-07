@@ -1,0 +1,43 @@
+# Render Blueprint (https://render.com/docs/blueprint-spec): one Node web service with a
+# persistent disk for the SQLite database and the uploaded media. PayPal runs in the sandbox only.
+services:
+  - type: web
+    name: sauda
+    runtime: node
+    plan: starter
+    region: oregon
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz
+    disk:
+      name: sauda-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: NODE_VERSION
+        value: 24.11.1
+      - key: GEMINI_BACKEND
+        value: vertex
+      - key: GEMINI_FAST_MODEL
+        value: gemini-3.8-flash
+      - key: GEMINI_FALLBACK_MODEL
+        value: gemini-4-argon
+      - key: GEMINI_FAST_TIMEOUT_MS
+        value: "8000"
+      - key: GEMINI_FALLBACK_TIMEOUT_MS
+        value: "30000"
+      - key: AI_DAILY_CALL_LIMIT
+        value: "500"
+      # Secrets: entered in the Render dashboard when the Blueprint is created, never committed.
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_MERCHANT_EMAIL
+        sync: false
+      - key: PAYPAL_BUYER_EMAIL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

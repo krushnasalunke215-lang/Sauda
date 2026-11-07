@@ -38,6 +38,9 @@ export const ui = {
   /** Floating menu panel (details/summary popovers). */
   menu: 'z-30 rounded-2xl bg-white p-1.5 shadow-lg ring-1 ring-stone-200',
   menuItem: 'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-50 disabled:opacity-50',
+  /** Small tappable chip (sample messages above the composer). */
+  chip:
+    'inline-flex shrink-0 items-center rounded-full bg-white px-3 py-1 text-xs text-stone-600 ring-1 ring-stone-200 transition-colors hover:bg-stone-50 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-50',
   /** Hides the default marker of a <summary>. */
   summary: 'cursor-pointer list-none [&::-webkit-details-marker]:hidden',
 } as const;

@@ -53,3 +53,40 @@ test('maker (Hindi) and buyer (English) negotiate by text and both confirm the s
 
   await close();
 });
+
+test('on a 390 px phone the buyer gets tabs and the composer stays visible; nothing overflows sideways', async ({ browser, request }) => {
+  const deal = await createDeal(request);
+  const { maker, buyer, close } = await openRoles(browser, deal, { viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  await expect(buyer.getByTestId('room')).toHaveAttribute('data-layout', 'tabs');
+  await expect(maker.getByTestId('room')).toHaveAttribute('data-layout', 'columns');
+  const composer = buyer.getByTestId('composer-input');
+  await expect(buyer.getByTestId('mobile-tab-chat')).toHaveAttribute('aria-selected', 'true');
+  await expect(buyer.getByTestId('chat')).toBeVisible();
+  await expect(buyer.getByTestId('sample-text')).toHaveCount(3);
+  await expect(composer).toBeInViewport();
+
+  const panels: [string, string][] = [
+    ['agreement', 'agreement'],
+    ['pay', 'pay-empty'],
+    ['timeline', 'timeline'],
+    ['chat', 'chat'],
+  ];
+  for (const [tab, panel] of panels) {
+    await buyer.getByTestId(`mobile-tab-${tab}`).click();
+    await expect(buyer.getByTestId(`mobile-tab-${tab}`)).toHaveAttribute('aria-selected', 'true');
+    await expect(buyer.getByTestId(panel)).toBeVisible();
+    if (tab !== 'chat') await expect(buyer.getByTestId('chat')).toHaveCount(0);
+    await buyer.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await expect(composer).toBeInViewport();
+  }
+
+  // Hindi and English text wraps inside 390 px on both sides.
+  for (const page of [maker, buyer]) {
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  }
+  await expect(maker.getByTestId('composer-input')).toHaveAttribute('placeholder', DEVANAGARI);
+
+  await close();
+});

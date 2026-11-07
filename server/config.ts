@@ -34,6 +34,8 @@ export interface Config {
   dataDir: string;
   publicBaseUrl: string | null;
   commit: string;
+  /** Model calls allowed per UTC day across the whole server (AI_DAILY_CALL_LIMIT, default 500). */
+  aiDailyCallLimit: number;
   paypal: Readonly<PayPalConfig>;
   gemini: Readonly<GeminiConfig>;
 }
@@ -95,6 +97,7 @@ export function loadConfig(opts: LoadOptions = {}): Config {
     dataDir: path.resolve(ROOT_DIR, str(env, 'DATA_DIR') ?? 'data'),
     publicBaseUrl,
     commit: str(env, 'RENDER_GIT_COMMIT') ?? 'local',
+    aiDailyCallLimit: int(env, 'AI_DAILY_CALL_LIMIT', 500),
     paypal: Object.freeze({
       clientId: str(env, 'PAYPAL_CLIENT_ID'),
       clientSecret: str(env, 'PAYPAL_CLIENT_SECRET'),
@@ -122,6 +125,7 @@ export function describeConfig(c: Config): Record<string, unknown> {
     dataDir: c.dataDir,
     publicBaseUrl: c.publicBaseUrl,
     commit: c.commit,
+    aiDailyCallLimit: c.aiDailyCallLimit,
     PAYPAL_CLIENT_ID: secret('PAYPAL_CLIENT_ID', c.paypal.clientId),
     PAYPAL_CLIENT_SECRET: secret('PAYPAL_CLIENT_SECRET', c.paypal.clientSecret),
     PAYPAL_MERCHANT_EMAIL: secret('PAYPAL_MERCHANT_EMAIL', c.paypal.merchantEmail),
