@@ -14,6 +14,9 @@ test('the maker speaks Hindi with push-to-talk and the buyer reads it in English
   const ptt = maker.getByTestId('ptt');
   await ptt.click();
   await expect(ptt).toHaveAttribute('data-recording', 'true');
+  // While recording, the composer shows the live sound wave.
+  await expect(maker.getByTestId('voice-stage')).toHaveAttribute('data-stage', 'recording');
+  await expect(maker.getByTestId('sound-wave')).toBeVisible();
   // The clip is 23.3 s long.
   await maker.waitForTimeout(24_000);
   await ptt.click();

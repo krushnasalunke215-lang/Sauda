@@ -32,7 +32,7 @@ function OriginalAudio({ url, lang }: { url: string; lang: Lang }) {
           else a.pause();
         }}
       >
-        <Icon name={playing ? 'pause' : 'play'} size={11} />
+        <Icon name={playing ? 'pause' : 'play'} size={12} />
         {playing ? t(lang, 'voice.pause') : t(lang, 'voice.play')}
       </button>
       <audio ref={audio} src={url} preload="none" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
@@ -94,7 +94,7 @@ function PhotoBody({ m, view, lang, actions }: { m: Message; view: DealView; lan
         <details className="group">
           <summary className={`${ui.summary} inline-flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-stone-800`}>
             {t(lang, 'photo.details')}
-            <Icon name="chevronDown" size={13} className="transition-transform group-open:rotate-180" />
+            <Icon name="chevronDown" size={14} className="transition-transform group-open:rotate-180" />
           </summary>
           <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-[13px] text-stone-600">
             {p.details.map((d, i) => (
@@ -175,6 +175,9 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
   // The viewer's language is prominent: their own words, or the translation of the other side's.
   const main = photo ? null : mine ? m.original?.text : done ? m.translation?.text : null;
   const sub = photo ? null : mine ? (done ? m.translation?.text : null) : m.original?.text;
+  // The language of each text, so Devanagari gets its larger size and line height (styles.css).
+  const mainLang = mine ? m.original?.lang : m.translation?.lang;
+  const subLang = mine ? m.translation?.lang : m.original?.lang;
   const working = m.status === 'pending' || m.status === 'interpreting';
   const workingText = t(lang, photo ? 'photo.looking' : m.status === 'pending' ? 'chat.pending' : 'chat.interpreting');
   const voice = m.kind === 'voice' && m.media;
@@ -193,17 +196,25 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
         {photo ? (
           <PhotoBody m={m} view={view} lang={lang} actions={actions} />
         ) : main ? (
-          <p data-testid="message-main" className="whitespace-pre-wrap text-[15px] leading-relaxed text-stone-900">
+          <p data-testid="message-main" lang={mainLang} className="msg-main whitespace-pre-wrap text-[15px] leading-relaxed text-stone-900">
             {main}
           </p>
+        ) : m.status === 'failed' ? (
+          <p className="text-sm text-stone-500">{t(lang, 'chat.failed')}</p>
         ) : (
-          <p className={`text-sm ${m.status === 'failed' ? 'text-stone-500' : 'animate-pulse text-stone-500'}`}>{m.status === 'failed' ? t(lang, 'chat.failed') : workingText}</p>
+          <div data-testid="message-working" className="min-w-48 space-y-2 py-0.5">
+            <p className="animate-pulse text-sm text-stone-500">{workingText}</p>
+            <div className={`${ui.skeleton} h-2.5 w-full rounded-full`} />
+            <div className={`${ui.skeleton} h-2.5 w-2/3 rounded-full`} />
+          </div>
         )}
         {sub && (
-          <p data-testid="message-sub" className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-stone-500">
-            <span className="block text-[11px] font-medium text-stone-400">{mine ? t(lang, 'chat.translatedFor', { name: other.name }) : t(lang, 'chat.original')}</span>
-            {sub}
-          </p>
+          <div data-testid="message-sub" className="mt-2">
+            <span className="block text-[11px] font-medium text-stone-500">{mine ? t(lang, 'chat.translatedFor', { name: other.name }) : t(lang, 'chat.original')}</span>
+            <p lang={subLang} className="msg-sub whitespace-pre-wrap text-[13px] leading-relaxed text-stone-600">
+              {sub}
+            </p>
+          </div>
         )}
         {working && (photo || (mine && main)) && <p className="mt-1.5 animate-pulse text-xs text-stone-500">{workingText}</p>}
         {m.status === 'failed' && (
@@ -212,7 +223,7 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
             <span>{renderError(lang, m.error)}</span>
             {mine && (
               <button type="button" data-testid="retry" className={`${ui.btnBubble} text-red-700 ring-red-200`} onClick={() => actions.onRetry(m.id)}>
-                <Icon name="refresh" size={11} />
+                <Icon name="refresh" size={12} />
                 {t(lang, 'chat.retry')}
               </button>
             )}
@@ -251,18 +262,36 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
   );
 }
 
+/** The empty conversation: a friendly first step instead of a blank panel. */
+function EmptyChat({ view, lang }: { view: DealView; lang: Lang }) {
+  const other = view.parties[otherRole(view.role)];
+  return (
+    <div data-testid="chat-empty" className="mx-auto flex max-w-xs flex-col items-center py-8 text-center">
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700" aria-hidden>
+        <Icon name="message" size={22} />
+      </span>
+      <p className="mt-3 text-sm font-semibold text-stone-900">{t(lang, 'chat.empty')}</p>
+      <p className="mt-1 text-sm leading-relaxed text-stone-500">
+        {t(lang, 'chat.emptyHint', { name: other.name, lang: t(lang, `langName.${other.lang}`) })} {t(lang, 'chat.emptyVoice')}
+      </p>
+    </div>
+  );
+}
+
 export function ChatPanel({ view, lang, highlight, actions }: { view: DealView; lang: Lang; highlight: number | null; actions: ChatActions }) {
   const end = useRef<HTMLDivElement>(null);
   const last = view.messages.at(-1);
   useEffect(() => {
     end.current?.scrollIntoView({ block: 'end' });
   }, [view.messages.length, last?.status]);
+  // Only the "deal room opened" event so far: nobody has said anything yet.
+  const empty = view.messages.every((m) => m.from === 'system');
   return (
     <div className="scroll-quiet flex-1 space-y-4 overflow-y-auto px-4 py-6 sm:px-6" data-testid="chat">
-      {view.messages.length <= 1 && <p className="mx-auto max-w-xs text-center text-sm leading-relaxed text-stone-400">{t(lang, 'chat.empty')}</p>}
       {view.messages.map((m) => (
         <Bubble key={m.id} m={m} view={view} lang={lang} highlight={highlight === m.seq} actions={actions} />
       ))}
+      {empty && <EmptyChat view={view} lang={lang} />}
       <div ref={end} />
     </div>
   );

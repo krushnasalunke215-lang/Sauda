@@ -30,7 +30,7 @@ export function ConfirmCard({ view, lang, onConfirm }: { view: DealView; lang: L
       )}
       {both ? (
         <p data-testid="confirm-both" className="flex items-center gap-2 text-sm font-medium text-emerald-800">
-          <Icon name="checkCircle" size={18} />
+          <Icon name="checkCircle" />
           {t(lang, 'confirm.both')}
         </p>
       ) : (
@@ -68,7 +68,7 @@ export function ConfirmCard({ view, lang, onConfirm }: { view: DealView; lang: L
       )}
       {a.locked && (
         <p className="mt-1.5 flex items-center gap-1.5 text-xs text-stone-500">
-          <Icon name="lock" size={13} />
+          <Icon name="lock" size={14} />
           {t(lang, 'confirm.locked')}
         </p>
       )}

@@ -70,10 +70,11 @@ export function PhotoButton({
         disabled={disabled || busy}
         onClick={() => input.current?.click()}
         title={label}
+        aria-label={label}
         className={ui.btnTool}
       >
         <Icon name="camera" />
-        <span className="hidden sm:inline">{busy ? busyLabel : label}</span>
+        <span className="hidden @lg:inline">{busy ? busyLabel : label}</span>
       </button>
       <input
         ref={input}

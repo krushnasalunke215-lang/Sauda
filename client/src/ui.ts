@@ -29,6 +29,14 @@ export const ui = {
   /** Composer tool pill (36 px high). */
   btnTool:
     'inline-flex h-9 cursor-pointer select-none items-center gap-1.5 rounded-full px-3 text-sm font-medium text-stone-600 transition-colors hover:bg-stone-100 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-50',
+  /** The big round microphone button of the composer (56 px). Add micIdle or micRecording for the colour. */
+  btnMic:
+    'inline-flex h-14 w-14 shrink-0 select-none items-center justify-center rounded-full text-white shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700 disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-stone-400 disabled:shadow-none',
+  micIdle: 'bg-emerald-700 hover:bg-emerald-800',
+  micRecording: 'bg-red-600 ring-4 ring-red-100 hover:bg-red-700',
+  /** The round send button inside the composer (36 px). */
+  btnSend:
+    'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white transition-colors hover:bg-emerald-800 disabled:bg-stone-200 disabled:text-stone-400',
   /** PayPal pay buttons only. */
   btnPayPal:
     'inline-flex w-full items-center justify-center gap-2 rounded-xl bg-paypal px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-paypal-dark',
@@ -43,6 +51,8 @@ export const ui = {
     'inline-flex shrink-0 items-center rounded-full bg-white px-3 py-1 text-xs text-stone-600 ring-1 ring-stone-200 transition-colors hover:bg-stone-50 hover:text-stone-900 disabled:cursor-not-allowed disabled:opacity-50',
   /** Hides the default marker of a <summary>. */
   summary: 'cursor-pointer list-none [&::-webkit-details-marker]:hidden',
+  /** A grey placeholder block while something loads. Give it a size (h-*, w-*) and a rounding (rounded-lg, rounded-full, …). */
+  skeleton: 'animate-pulse bg-stone-200',
 } as const;
 
 /** Closes a <details> popover on a click outside it or on Escape. */

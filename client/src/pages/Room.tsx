@@ -7,64 +7,90 @@ import { ChatPanel } from '../components/ChatPanel.js';
 import { Composer } from '../components/Composer.js';
 import { ConfirmCard } from '../components/ConfirmCard.js';
 import { CopyButton } from '../components/CopyButton.js';
+import { DealProgress } from '../components/DealProgress.js';
 import { Icon } from '../components/Icon.js';
 import { MoneyTimeline } from '../components/MoneyTimeline.js';
+import { PaymentMoment } from '../components/PaymentMoment.js';
 import { PaymentPanel } from '../components/PaymentPanel.js';
 import { ProductionBoard } from '../components/ProductionBoard.js';
 import { ProposalsPanel } from '../components/ProposalCard.js';
+import { QrImage } from '../components/QrImage.js';
 import { QuestionsPanel } from '../components/QuestionsPanel.js';
 import { renderError, t } from '../i18n.js';
 import { JudgeMode } from '../judge.js';
 import { subscribeDeal, type SocketStatus } from '../socket.js';
 import { ui, useCloseOnOutside } from '../ui.js';
 
-/** How many of the five deal steps (confirm, invoice, deposit, balance, ship) are done in each phase. */
-const PHASE_STEPS: Record<DealView['phase'], number> = {
-  negotiating: 0,
-  confirmed: 1,
-  invoiced: 2,
-  deposit_paid: 3,
-  paid: 4,
-  shipped: 5,
-  cancelled: 0,
-};
-
-/** The deal phase: five small segments for the steps done, and the phase name. */
-function PhaseBadge({ phase, lang }: { phase: DealView['phase']; lang: Lang }) {
-  const done = PHASE_STEPS[phase];
-  const tone = phase === 'cancelled' ? 'text-stone-500' : phase === 'negotiating' ? 'text-stone-700' : 'text-emerald-800';
-  return (
-    <div data-testid="phase" data-phase={phase} className="flex shrink-0 items-center gap-2.5">
-      <div className="hidden gap-1 sm:flex" aria-hidden>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <span key={i} className={`h-1.5 w-4 rounded-full ${i < done ? 'bg-emerald-600' : 'bg-stone-200'}`} />
-        ))}
-      </div>
-      <span className={`text-sm font-medium ${tone}`}>{t(lang, `phase.${phase}`)}</span>
-    </div>
-  );
-}
-
-/** The maker's buyer invite link, in a small popover. */
-function InviteMenu({ url, lang }: { url: string; lang: Lang }) {
+/** The maker's buyer invite, in a small popover: a QR code to scan and the link with a copy button. */
+function InviteMenu({ url, lang, buyer }: { url: string; lang: Lang; buyer: string }) {
   const ref = useRef<HTMLDetailsElement>(null);
   useCloseOnOutside(ref);
   return (
-    <details ref={ref} className="relative">
-      <summary className={`${ui.btnSecondary} ${ui.summary} py-1.5`} title={t(lang, 'room.invite')}>
-        <Icon name="link" />
+    <details ref={ref} className="relative" data-testid="invite-menu">
+      <summary className={`${ui.btnSecondary} ${ui.summary} py-1.5`} title={t(lang, 'room.invite')} aria-label={t(lang, 'room.invite')}>
+        <Icon name="userPlus" />
         <span className="hidden md:inline">{t(lang, 'room.invite')}</span>
       </summary>
-      <div className={`${ui.menu} absolute right-0 top-full mt-2 w-80 p-4`}>
-        <div className={ui.label}>{t(lang, 'room.invite')}</div>
-        <div className="mt-2 flex items-center gap-2">
-          <code data-testid="invite-url" className="min-w-0 flex-1 truncate rounded-lg bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700 ring-1 ring-stone-200">
-            {url}
-          </code>
-          <CopyButton text={url} label={t(lang, 'room.copy')} done={t(lang, 'room.copied')} />
+      <div className={`${ui.menu} absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] p-4`}>
+        <div className={ui.title}>{t(lang, 'invite.title', { name: buyer })}</div>
+        <p className={`${ui.meta} mt-1 leading-relaxed`}>{t(lang, 'invite.text', { name: buyer })}</p>
+        <div className="mt-4 flex justify-center">
+          <QrImage url={url} size={168} alt={t(lang, 'invite.qr')} testId="invite-qr" />
+        </div>
+        <code data-testid="invite-url" className="mt-4 block truncate rounded-lg bg-stone-50 px-2.5 py-1.5 text-xs text-stone-700 ring-1 ring-stone-200">
+          {url}
+        </code>
+        <div className="mt-3">
+          <CopyButton primary text={url} label={t(lang, 'invite.copy')} done={t(lang, 'room.copied')} testId="invite-copy" />
         </div>
       </div>
     </details>
+  );
+}
+
+/** Grey placeholders in the shape of the room while the first snapshot loads. */
+function RoomSkeleton() {
+  return (
+    <div className="flex min-h-dvh flex-col" data-testid="room-loading" aria-busy="true">
+      <span className="sr-only">{t('en', 'room.connecting')}</span>
+      <div className="h-14 shrink-0 border-b border-stone-200 bg-white">
+        <div className="mx-auto flex h-full max-w-7xl items-center gap-4 px-4">
+          <div className={`${ui.skeleton} h-5 w-14 rounded-lg`} />
+          <div className="space-y-1.5">
+            <div className={`${ui.skeleton} h-3.5 w-36 rounded-full`} />
+            <div className={`${ui.skeleton} h-2.5 w-24 rounded-full`} />
+          </div>
+          <div className={`${ui.skeleton} ml-auto hidden h-1.5 w-96 rounded-full lg:block`} />
+          <div className={`${ui.skeleton} ml-auto h-9 w-9 rounded-full lg:ml-0`} />
+        </div>
+      </div>
+      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <div className={`${ui.card} flex min-h-[60vh] flex-col gap-4 p-6`}>
+          <div className={`${ui.skeleton} mx-auto h-3 w-56 rounded-full`} />
+          <div className={`${ui.skeleton} h-20 w-3/5 rounded-2xl`} />
+          <div className={`${ui.skeleton} ml-auto h-24 w-1/2 rounded-2xl`} />
+          <div className="mt-auto flex items-end gap-3">
+            <div className={`${ui.skeleton} h-14 w-14 rounded-full`} />
+            <div className={`${ui.skeleton} h-24 flex-1 rounded-2xl`} />
+          </div>
+        </div>
+        <div className="hidden space-y-4 lg:block">
+          <div className={`${ui.skeleton} h-10 rounded-xl`} />
+          <div className={`${ui.card} space-y-4 p-5`}>
+            <div className={`${ui.skeleton} h-4 w-24 rounded-full`} />
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="flex gap-3">
+                <div className={`${ui.skeleton} h-8 w-8 rounded-lg`} />
+                <div className="flex-1 space-y-1.5">
+                  <div className={`${ui.skeleton} h-2.5 w-20 rounded-full`} />
+                  <div className={`${ui.skeleton} h-3.5 w-4/5 rounded-full`} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -243,7 +269,7 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
       </main>
     );
   }
-  if (!view) return <main className="px-4 py-24 text-center text-sm text-stone-500">{t('en', 'room.connecting')}</main>;
+  if (!view) return <RoomSkeleton />;
 
   const me = view.parties[view.role];
   const other = view.parties[otherRole(view.role)];
@@ -318,7 +344,9 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
     <Composer
       lang={lang}
       otherName={other.name}
+      otherLang={other.lang}
       messages={view.messages}
+      rows={view.agreement.rows}
       samples={samples.filter((s) => s.kind === 'voice')}
       photoKind={photoKind}
       sampleTexts={sampleTexts}
@@ -379,20 +407,25 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
   return (
     <JudgeMode.Provider value={judge}>
     <div className="flex min-h-dvh flex-col" data-testid="room" data-role={view.role} data-lang={lang} data-judge={judge ? 'on' : 'off'} data-layout={mobile ? 'tabs' : 'columns'}>
-      <header className="sticky top-0 z-20 h-14 shrink-0 border-b border-stone-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-full max-w-7xl items-center gap-3 px-4 sm:gap-4">
-          <span className="text-base font-bold tracking-tight text-stone-900">{t(lang, 'app.name')}</span>
-          <span className="h-6 w-px bg-stone-200" aria-hidden />
-          <div className="min-w-0 flex-1 leading-tight">
-            <div className="truncate text-sm font-semibold text-stone-900">
-              {me.name} <span className="font-normal text-stone-500">· {t(lang, `role.${view.role}`)}</span>
-            </div>
-            <div className="truncate text-xs text-stone-500">
-              {t(lang, 'room.with', { name: other.name })}
-              {judge && ` · SAUDA-${view.id}`}
+      <div className="sticky top-0 z-20">
+      <header className="shrink-0 border-b border-stone-200 bg-white/95 backdrop-blur">
+        {/* One row from lg up (the progress bar sits between the names and the buttons); below lg the progress bar is a second row. */}
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 px-4 sm:gap-x-4 lg:h-14 lg:flex-nowrap">
+          <div className="flex h-14 min-w-0 flex-1 items-center gap-3 sm:gap-4 lg:max-w-xs">
+            <span className="text-base font-bold tracking-tight text-stone-900">{t(lang, 'app.name')}</span>
+            <span className="h-6 w-px shrink-0 bg-stone-200" aria-hidden />
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="truncate text-sm font-semibold text-stone-900">
+                {me.name} <span className="font-normal text-stone-500">· {t(lang, `role.${view.role}`)}</span>
+              </div>
+              <div className="truncate text-xs text-stone-500">
+                {t(lang, 'room.with', { name: other.name })}
+                {judge && ` · SAUDA-${view.id}`}
+              </div>
             </div>
           </div>
-          <PhaseBadge phase={view.phase} lang={lang} />
+          <DealProgress view={view} lang={lang} className="order-last h-10 w-full lg:order-none lg:h-auto lg:w-auto lg:flex-1 lg:px-2" />
+          <div className="flex h-14 shrink-0 items-center gap-2">
           {status !== 'connected' && (
             <span className="hidden text-xs text-amber-700 sm:inline">{t(lang, status === 'connecting' ? 'room.connecting' : 'room.reconnecting')}</span>
           )}
@@ -415,13 +448,13 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
               <Icon name={sound === 'on' ? 'volume' : 'volumeOff'} size={18} />
             </button>
           )}
-          {inviteUrl && <InviteMenu url={inviteUrl} lang={lang} />}
+          {inviteUrl && <InviteMenu url={inviteUrl} lang={lang} buyer={view.parties.buyer.name} />}
+          </div>
         </div>
       </header>
-
-      {mobile ? (
-        <>
-          <div className="sticky top-14 z-10 bg-stone-50 px-3 pt-3">
+      {/* The buyer's phone tabs stick with the header. */}
+      {mobile && (
+          <div className="bg-stone-50 px-3 pt-3">
             <div className="flex gap-1 rounded-xl bg-stone-200/60 p-1 text-sm" role="tablist">
               {MOBILE_TABS.map((k) => (
                 <button
@@ -441,6 +474,13 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
               ))}
             </div>
           </div>
+      )}
+      </div>
+
+      <PaymentMoment view={view} lang={lang} />
+
+      {mobile ? (
+        <>
           <main className="flex flex-1 flex-col gap-3 p-3" data-testid={`mobile-panel-${mobileTab}`}>
             {mobileTab === 'chat' && <section className={`${ui.card} flex flex-1 flex-col overflow-hidden`}>{chat}</section>}
             {mobileTab === 'agreement' && agreement}
@@ -464,7 +504,7 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
         </>
       ) : (
         <div
-          className={`mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem)] lg:flex-none lg:grid-rows-[minmax(0,1fr)] ${
+          className={`mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem-1px)] lg:flex-none lg:grid-rows-[minmax(0,1fr)] ${
             // The production board needs a wide side panel; the chat narrows while it is open.
             board ? 'lg:grid-cols-[minmax(340px,1fr)_minmax(0,1.6fr)]' : 'lg:grid-cols-[minmax(0,1fr)_400px]'
           }`}
@@ -485,7 +525,7 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
                   aria-selected={tab === k}
                   data-testid={`tab-${k}`}
                   onClick={() => setTab(k)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-colors ${
+                  className={`flex flex-auto items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 font-medium transition-colors ${
                     tab === k ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >

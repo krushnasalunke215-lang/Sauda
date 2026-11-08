@@ -111,6 +111,25 @@ const PATHS = {
       <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.4M12 16.8v.2" />
     </>
   ),
+  stop: <rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none" />,
+  tag: (
+    <>
+      <path d="M4 4.5h7l8.5 8.5-6.5 6.5L4.5 11z" />
+      <circle cx="8.3" cy="8.8" r="1.3" />
+    </>
+  ),
+  wallet: (
+    <>
+      <path d="M17 5H6a2 2 0 0 0-2 2v10.5A1.5 1.5 0 0 0 5.5 19h13a1.5 1.5 0 0 0 1.5-1.5v-8A1.5 1.5 0 0 0 18.5 8H4.5" />
+      <path d="M16.5 13.5h.2" strokeWidth={2.5} />
+    </>
+  ),
+  userPlus: (
+    <>
+      <circle cx="10" cy="8" r="3.5" />
+      <path d="M3.5 19.5a6.5 6.5 0 0 1 13 0M18.5 8v6M15.5 11h6" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconName = keyof typeof PATHS;

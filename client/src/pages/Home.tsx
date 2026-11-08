@@ -3,6 +3,7 @@ import { LANGS, type CreateDealInput, type CreateDealResult, type Lang } from '.
 import { ApiError, api } from '../api.js';
 import { CopyButton } from '../components/CopyButton.js';
 import { Icon } from '../components/Icon.js';
+import { AgreeArt, PaidArt, TalkArt } from '../components/Illustrations.js';
 import { t } from '../i18n.js';
 import { ui } from '../ui.js';
 
@@ -71,6 +72,13 @@ export const DEMO_DEAL: CreateDealInput = { makerName: 'Ravi Chikan', makerLang:
 
 const STEPS = ['home.step1', 'home.step2', 'home.step3', 'home.step4', 'home.step5'] as const;
 
+/** The three illustrated "how it works" steps. */
+const HOW = [
+  { key: 'how1', Art: TalkArt },
+  { key: 'how2', Art: AgreeArt },
+  { key: 'how3', Art: PaidArt },
+] as const;
+
 export function Home() {
   const [makerName, setMakerName] = useState(DEMO_DEAL.makerName);
   const [makerLang, setMakerLang] = useState<Lang>(DEMO_DEAL.makerLang);
@@ -97,56 +105,83 @@ export function Home() {
   const abs = (u: string) => new URL(u, window.location.origin).href;
 
   return (
-    <main className="mx-auto max-w-xl px-4 py-16 sm:py-24">
-      <header className="text-center">
+    <main className="mx-auto max-w-4xl px-4 py-14 sm:py-20">
+      <header className="mx-auto max-w-2xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-stone-900">
           {t(UI, 'app.name')} <span className="text-emerald-700">सौदा</span>
         </h1>
-        <p data-testid="home-problem" className="mx-auto mt-3 max-w-md text-base leading-relaxed text-stone-600">
+        <p data-testid="home-pitch" className="mt-4 text-lg leading-relaxed text-stone-800 sm:text-xl">
+          {t(UI, 'home.pitch')}
+        </p>
+        <p data-testid="home-problem" className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-stone-500">
           {t(UI, 'home.problem')}
         </p>
-        <a data-testid="try-demo" href="/demo" className={`${ui.btnPrimary} mt-8`}>
+        <a data-testid="try-demo" href="/demo" className={`${ui.btnPrimary} mt-8 px-6 py-3 text-base`}>
+          <Icon name="play" size={14} />
           {t(UI, 'home.tryDemo')}
         </a>
+        <p className={`${ui.meta} mt-3`}>{t(UI, 'home.tryDemoNote')}</p>
       </header>
 
-      <form onSubmit={submit} className={`${ui.card} mt-10 p-6 sm:p-8`}>
-        <h2 className="text-base font-semibold text-stone-900">{t(UI, 'home.title')}</h2>
-        <p className="mt-1 text-sm leading-relaxed text-stone-500">{t(UI, 'home.intro')}</p>
-        <div className="mt-6 grid gap-6 sm:grid-cols-2">
-          <PartyFields title={t(UI, 'role.maker')} name={makerName} lang={makerLang} onName={setMakerName} onLang={setMakerLang} testId="maker" />
-          <PartyFields title={t(UI, 'role.buyer')} name={buyerName} lang={buyerLang} onName={setBuyerName} onLang={setBuyerLang} testId="buyer" />
-        </div>
-        <button data-testid="create-deal" type="submit" disabled={busy} className={`${ui.btnSecondary} mt-8 w-full`}>
-          {busy ? t(UI, 'home.creating') : t(UI, 'home.create')}
-        </button>
-        {error && (
-          <p className="mt-3 flex items-center gap-2 text-sm text-red-700">
-            <Icon name="alert" />
-            {error}
-          </p>
-        )}
-      </form>
-
-      {result && (
-        <section className={`${ui.card} mt-4 divide-y divide-stone-100`} data-testid="deal-links">
-          <LinkRow label={t(UI, 'home.makerLink')} url={abs(result.maker.url)} open={t(UI, 'home.openMaker')} testId="maker" />
-          <LinkRow label={t(UI, 'home.buyerLink')} url={abs(result.buyer.url)} open={t(UI, 'home.openBuyer')} testId="buyer" />
-        </section>
-      )}
-
-      <section className="mt-10 px-1" data-testid="home-steps">
-        <h2 className={ui.title}>{t(UI, 'home.stepsTitle')}</h2>
-        <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-stone-600">
-          {STEPS.map((k) => (
-            <li key={k}>{t(UI, k)}</li>
+      <section className="mt-14" data-testid="home-how" aria-labelledby="home-how-title">
+        <h2 id="home-how-title" className="sr-only">
+          {t(UI, 'home.howTitle')}
+        </h2>
+        <ol className="grid gap-4 sm:grid-cols-3">
+          {HOW.map(({ key, Art }, i) => (
+            <li key={key} data-testid="home-how-step" className={`${ui.card} p-5`}>
+              <div className="flex h-24 items-center justify-center rounded-xl bg-stone-50">
+                <Art />
+              </div>
+              <div className="mt-4 flex items-center gap-2">
+                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-semibold text-emerald-800">{i + 1}</span>
+                <h3 className={ui.title}>{t(UI, `home.${key}.title`)}</h3>
+              </div>
+              <p className="mt-1.5 text-sm leading-relaxed text-stone-600">{t(UI, `home.${key}.text`)}</p>
+            </li>
           ))}
         </ol>
       </section>
 
-      <footer className={`${ui.meta} mt-12 text-center`} data-testid="home-footer">
-        {t(UI, 'home.footer')}
-      </footer>
+      <div className="mx-auto mt-14 max-w-xl">
+        <section className="px-1" data-testid="home-steps">
+          <h2 className={ui.title}>{t(UI, 'home.stepsTitle')}</h2>
+          <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-stone-600">
+            {STEPS.map((k) => (
+              <li key={k}>{t(UI, k)}</li>
+            ))}
+          </ol>
+        </section>
+
+        <form onSubmit={submit} className={`${ui.card} mt-10 p-6 sm:p-8`}>
+          <h2 className="text-base font-semibold text-stone-900">{t(UI, 'home.title')}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-stone-500">{t(UI, 'home.intro')}</p>
+          <div className="mt-6 grid gap-6 sm:grid-cols-2">
+            <PartyFields title={t(UI, 'role.maker')} name={makerName} lang={makerLang} onName={setMakerName} onLang={setMakerLang} testId="maker" />
+            <PartyFields title={t(UI, 'role.buyer')} name={buyerName} lang={buyerLang} onName={setBuyerName} onLang={setBuyerLang} testId="buyer" />
+          </div>
+          <button data-testid="create-deal" type="submit" disabled={busy} className={`${ui.btnSecondary} mt-8 w-full`}>
+            {busy ? t(UI, 'home.creating') : t(UI, 'home.create')}
+          </button>
+          {error && (
+            <p className="mt-3 flex items-center gap-2 text-sm text-red-700">
+              <Icon name="alert" />
+              {error}
+            </p>
+          )}
+        </form>
+
+        {result && (
+          <section className={`${ui.card} mt-4 divide-y divide-stone-100`} data-testid="deal-links">
+            <LinkRow label={t(UI, 'home.makerLink')} url={abs(result.maker.url)} open={t(UI, 'home.openMaker')} testId="maker" />
+            <LinkRow label={t(UI, 'home.buyerLink')} url={abs(result.buyer.url)} open={t(UI, 'home.openBuyer')} testId="buyer" />
+          </section>
+        )}
+
+        <footer className={`${ui.meta} mt-12 text-center`} data-testid="home-footer">
+          {t(UI, 'home.footer')}
+        </footer>
+      </div>
     </main>
   );
 }

@@ -24,6 +24,79 @@ html {
 }
 
 /*
+ * Hindi readability (docs/design.md, Type). Devanagari needs a little more size and line height
+ * than Latin text at the same class. On a Hindi page the small text classes grow one step (and
+ * nothing in Devanagari is below 13 px); explicit leading-* classes still win through --tw-leading.
+ */
+html:lang(hi) .text-\[11px\] {
+  font-size: 13px;
+  line-height: var(--tw-leading, 1.5);
+}
+html:lang(hi) .text-xs {
+  font-size: 0.8125rem;
+  line-height: var(--tw-leading, 1.6);
+}
+html:lang(hi) .text-\[13px\] {
+  font-size: 14px;
+  line-height: var(--tw-leading, 1.7);
+}
+html:lang(hi) .text-sm {
+  font-size: 0.9375rem;
+  line-height: var(--tw-leading, 1.65);
+}
+/* Chat text in Hindi, on any page: the main line and the grey line under it (lang is set per message). */
+.msg-main:lang(hi) {
+  font-size: 16px;
+  line-height: 1.8;
+}
+.msg-sub:lang(hi) {
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+/* An agreement line a message just changed: a soft emerald glow that fades out once. */
+@keyframes term-flash {
+  0%,
+  35% { background-color: rgb(236 253 245); box-shadow: inset 0 0 0 1px rgb(167 243 208); }
+  100% { background-color: transparent; box-shadow: inset 0 0 0 1px transparent; }
+}
+
+.term-flash {
+  animation: term-flash 2.4s ease-out 1;
+}
+
+/* The payment moment: the card rises in, the check draws itself, then the card fades out. */
+@keyframes pay-moment {
+  0% { opacity: 0; transform: translateY(8px) scale(0.96); }
+  8%,
+  88% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+@keyframes pay-check {
+  from { stroke-dashoffset: 40; }
+  to { stroke-dashoffset: 0; }
+}
+
+.pay-moment {
+  animation: pay-moment 5.5s ease-out 1 both;
+}
+
+.pay-moment-check {
+  stroke-dasharray: 40;
+  animation: pay-check 0.5s ease-out 0.25s 1 both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-flash,
+  .pay-moment,
+  .pay-moment-check,
+  .cite-flash {
+    animation: none;
+  }
+}
+
+/*
  * Bryntum production board (client/src/board/BryntumBoard.tsx). The same state colours as the
  * fallback board and the payment milestones: done emerald-600, ready emerald-200, locked stone-200,
  * the ship-by date red-500, waiting for a payment amber. Harmless when Bryntum is not installed.
@@ -106,6 +179,10 @@ html {
   font-size: 11px;
   font-weight: 500;
   color: var(--color-amber-800);
+}
+/* Devanagari is never below 13 px (docs/design.md). */
+html:lang(hi) .sauda-waiting {
+  font-size: 13px;
 }
 .sauda-bryntum .b-tree-icon.sauda-icon-locked {
   color: var(--color-stone-400);

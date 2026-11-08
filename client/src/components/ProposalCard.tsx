@@ -82,7 +82,7 @@ export function ProposalCard({ p, view, lang, actions }: { p: Proposal; view: De
       <div className="flex items-start justify-between gap-3">
         <div className="text-sm font-semibold text-stone-900">{t(lang, `proposal.tool.${p.tool}`)}</div>
         <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_STYLE[p.status]}`}>
-          {p.status === 'running' && <Icon name="refresh" size={11} className="animate-spin" />}
+          {p.status === 'running' && <Icon name="refresh" size={12} className="animate-spin" />}
           {t(lang, `proposal.status.${p.status}`)}
         </span>
       </div>

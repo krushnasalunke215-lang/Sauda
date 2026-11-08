@@ -25,6 +25,13 @@ test('maker (Hindi) and buyer (English) negotiate by text and both confirm the s
   await expect(makerMsgOnBuyer.getByTestId('model-badge')).toHaveText(/(Flash|Argon).* s$/);
 
   for (const page of [maker, buyer]) {
+    // The compact card: three grouped lines; the money line links back to the maker's message.
+    const money = page.locator('[data-testid="agreement-line"][data-group="money"]');
+    await expect(money).toContainText('120.00');
+    await expect(money).toContainText('36.00');
+    await expect(money.getByTestId('agreement-source')).toBeVisible();
+    // "Show all details" opens the full list, each term with its citation.
+    await page.getByTestId('agreement-expand').click();
     await expect(agreementValue(page, 'price')).toContainText('120.00');
     await expect(agreementValue(page, 'deposit')).toContainText('36.00');
     await expect(agreementValue(page, 'balance')).toContainText('84.00');

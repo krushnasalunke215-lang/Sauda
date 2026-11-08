@@ -41,6 +41,11 @@ export class Recorder {
 
   constructor(private readonly onAutoStop: (clip: Clip | null) => void) {}
 
+  /** The live microphone stream once start() has resolved (for the sound wave), else null. */
+  get mediaStream(): MediaStream | null {
+    return this.stream;
+  }
+
   start(): Promise<void> {
     if (!canRecord()) return Promise.reject(new RecordError('unsupported'));
     this.starting ??= (async () => {

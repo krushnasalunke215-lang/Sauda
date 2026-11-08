@@ -62,7 +62,9 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
   for (const page of pages) {
     await expect(agreementValue(page, 'price')).toContainText('120.00');
     await expect(agreementValue(page, 'deposit')).toContainText('36.00');
-    await expect(agreementValue(page, 'shipping')).toBeVisible();
+    // Shipping sits in the compact card's delivery line (the full rows are behind "Show all details").
+    await expect(agreementValue(page, 'shipping')).toHaveCount(1);
+    await expect(page.locator('[data-testid="agreement-line"][data-group="delivery"]')).toHaveAttribute('data-filled', 'true');
   }
 
   // Both confirm; the agent proposes the invoice and only the maker can approve it.
@@ -110,6 +112,9 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
   await recordPayment(invoiceId, 3600);
   for (const page of pages) {
     await expect(page.getByTestId('deposit-chip')).toHaveAttribute('data-state', 'received', { timeout: PAYMENT_TIMEOUT });
+    // Both screens show the payment moment with the amount.
+    await expect(page.getByTestId('payment-moment')).toHaveAttribute('data-kind', 'deposit');
+    await expect(page.getByTestId('payment-moment')).toContainText('$36.00');
     await expect(page.getByTestId('phase')).toHaveAttribute('data-phase', 'deposit_paid');
     await expect(page.getByTestId('invoice-due')).toHaveText('$84.00');
   }

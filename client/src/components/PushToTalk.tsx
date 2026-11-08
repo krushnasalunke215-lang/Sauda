@@ -1,41 +1,37 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 import type { Lang } from '../../../shared/types.js';
-import { MAX_RECORD_MS, RecordError, Recorder, type Clip } from '../audio/recorder.js';
+import { RecordError, Recorder, type Clip } from '../audio/recorder.js';
 import { t } from '../i18n.js';
+import { ui } from '../ui.js';
 import { Icon } from './Icon.js';
 
 /** A press longer than this is "hold to talk"; a shorter one (a click or tap) toggles recording. */
 const HOLD_MS = 400;
 
 /**
- * Records while the button is held. A click or tap (and Enter/Space) toggles recording instead, for
- * keyboard and touch users. Clips under 0.5 s are ignored.
+ * The composer's big round microphone button. Records while it is held. A click or tap (and
+ * Enter/Space) toggles recording instead, for keyboard and touch users. Clips under 0.5 s are
+ * ignored. `onStream` gets the live microphone stream for the sound wave (null when it stops).
  */
 export function PushToTalk({
   lang,
   disabled,
   onClip,
   onRecording,
+  onStream,
   onError,
 }: {
   lang: Lang;
   disabled: boolean;
   onClip: (clip: Clip) => void;
   onRecording: (on: boolean) => void;
+  onStream?: (stream: MediaStream | null) => void;
   onError: (code: string) => void;
 }) {
   const rec = useRef<Recorder | null>(null);
   const mode = useRef<'hold' | 'toggle'>('hold');
   const downAt = useRef(0);
   const [recording, setRecording] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    if (!recording) return;
-    const t0 = performance.now();
-    const id = setInterval(() => setElapsed(Math.floor((performance.now() - t0) / 1000)), 250);
-    return () => clearInterval(id);
-  }, [recording]);
 
   useEffect(() => () => void rec.current?.stop(), []);
 
@@ -46,8 +42,8 @@ export function PushToTalk({
 
   function setOn(on: boolean) {
     setRecording(on);
-    setElapsed(0);
     onRecording(on);
+    if (!on) onStream?.(null);
   }
 
   async function begin(m: 'hold' | 'toggle') {
@@ -64,6 +60,7 @@ export function PushToTalk({
     setOn(true);
     try {
       await r.start();
+      if (rec.current === r) onStream?.(r.mediaStream);
     } catch (e) {
       if (rec.current === r) rec.current = null;
       setOn(false);
@@ -108,6 +105,7 @@ export function PushToTalk({
     else void begin('toggle');
   }
 
+  const label = t(lang, recording ? 'voice.stopHint' : 'voice.hold');
   return (
     <button
       type="button"
@@ -115,19 +113,17 @@ export function PushToTalk({
       data-recording={recording}
       disabled={disabled && !recording}
       aria-pressed={recording}
-      title={t(lang, 'voice.holdHint')}
+      aria-label={label}
+      title={recording ? label : t(lang, 'voice.holdHint')}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onClick={onClick}
       onContextMenu={(e) => e.preventDefault()}
       style={{ touchAction: 'none' }}
-      className={`inline-flex h-9 select-none items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors ${
-        recording ? 'bg-red-600 text-white' : 'bg-white text-stone-800 ring-1 ring-stone-200 hover:bg-stone-100'
-      } disabled:cursor-not-allowed disabled:opacity-50`}
+      className={`${ui.btnMic} ${recording ? ui.micRecording : ui.micIdle}`}
     >
-      {recording ? <span className="h-2 w-2 animate-pulse rounded-full bg-white" aria-hidden /> : <Icon name="mic" className="text-emerald-700" />}
-      {recording ? t(lang, 'voice.recording', { s: elapsed, max: MAX_RECORD_MS / 1000 }) : t(lang, 'voice.hold')}
+      <Icon name={recording ? 'stop' : 'mic'} size={recording ? 20 : 26} />
     </button>
   );
 }

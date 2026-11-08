@@ -84,7 +84,8 @@ export function Board(props: BoardProps) {
       columns: [
         {
           type: 'name',
-          width: 300,
+          // Wide enough for a Hindi step name plus the amber "waiting for the PayPal payment" marker.
+          width: 370,
           renderer: ({ record }: { record: { id: string | number } }) => {
             const r = byId.get(String(record.id));
             if (!r) return '';

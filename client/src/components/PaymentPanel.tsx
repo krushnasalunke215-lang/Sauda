@@ -1,9 +1,9 @@
-import QRCode from 'qrcode';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { depositPaid, fullyPaid, type DealView, type Lang, type Message } from '../../../shared/types.js';
 import { t, tMaybe } from '../i18n.js';
 import { ui } from '../ui.js';
 import { Icon } from './Icon.js';
+import { QrImage } from './QrImage.js';
 
 const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES' };
 const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
@@ -44,22 +44,12 @@ function Milestone({ label, amount, event, lang, testId }: { label: string; amou
 }
 
 function PayLink({ url, label, qrLabel, testId }: { url: string; label: string; qrLabel: string; testId: string }) {
-  const [qr, setQr] = useState<string | null>(null);
-  useEffect(() => {
-    let live = true;
-    QRCode.toDataURL(url, { margin: 1, width: 160 })
-      .then((d) => live && setQr(d))
-      .catch(() => live && setQr(null));
-    return () => {
-      live = false;
-    };
-  }, [url]);
   return (
     <div className="flex items-center gap-3">
       <a data-testid={testId} href={url} target="_blank" rel="noopener noreferrer" className={`${ui.btnPayPal} flex-1`}>
         {label}
       </a>
-      {qr && <img data-testid="payer-qr" src={qr} width={64} height={64} alt={qrLabel} title={qrLabel} className="rounded-lg ring-1 ring-stone-200" />}
+      <QrImage url={url} size={64} alt={qrLabel} testId="payer-qr" />
     </div>
   );
 }
@@ -201,13 +191,13 @@ export function PaymentPanel({
               }}
               className={ui.btnGhost}
             >
-              <Icon name="refresh" size={14} className={checking ? 'animate-spin' : ''} />
+              <Icon name="refresh" className={checking ? 'animate-spin' : ''} />
               {checking ? t(lang, 'pay.checking') : t(lang, 'pay.checkNow')}
             </button>
           )}
           {canRemind && (
             <button type="button" data-testid="remind-buyer" disabled={reminderBusy} onClick={() => void onRemind()} className={ui.btnGhost}>
-              <Icon name="bell" size={14} />
+              <Icon name="bell" />
               {t(lang, 'pay.remind')}
             </button>
           )}

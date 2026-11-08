@@ -90,7 +90,13 @@ export function Demo() {
                   className="block h-full w-full"
                 />
               ) : (
-                <p className="px-4 py-24 text-center text-sm text-stone-500">{t(UI, 'demo.starting')}</p>
+                <div className="flex h-full min-h-80 flex-col gap-4 p-5" data-testid="demo-loading" aria-busy="true">
+                  <div className={`${ui.skeleton} h-8 w-1/2 rounded-lg`} />
+                  <div className={`${ui.skeleton} h-1.5 w-full rounded-full`} />
+                  <div className={`${ui.skeleton} h-16 w-3/5 rounded-2xl`} />
+                  <div className={`${ui.skeleton} ml-auto h-20 w-1/2 rounded-2xl`} />
+                  <p className={`${ui.meta} mt-auto text-center`}>{error ? '' : t(UI, 'demo.starting')}</p>
+                </div>
               )}
             </div>
           </section>
