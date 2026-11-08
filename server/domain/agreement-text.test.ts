@@ -22,7 +22,7 @@ describe('invoice texts', () => {
     const note = buildNote(deal);
     const lines = note.split('\n');
     expect(lines[0]).toBe('सौदा ऑर्डर समझौता / Sauda order agreement SAUDA-TESTDEAL');
-    expect(lines[1]).toBe('कारीगर / Maker: Asha Chikan Studio (हिंदी)');
+    expect(lines[1]).toBe('कारीगर / Maker: Ravi Chikan Studio (हिंदी)');
     expect(note).toContain('1. सामान / Item: हाथ की कढ़ाई वाला चिकनकारी कुर्ता / Hand-embroidered chikankari kurta');
     expect(note).toContain('लंबाई 44 इंच (111.8 सेमी) / Length 44 in (111.8 cm)');
     expect(note).toContain('कुल कीमत / Total price: $120.00');

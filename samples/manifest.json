@@ -22,5 +22,41 @@
       "es": "Solo condiciones en hindi (10 s): color, precio, anticipo, fecha"
     },
     "kind": "voice"
+  },
+  {
+    "id": "shipping-answer",
+    "file": "shipping-answer.m4a",
+    "role": "maker",
+    "lang": "hi",
+    "label": {
+      "en": "Shipping answer in Hindi (8 s): yes, shipping to the US is included in $120",
+      "hi": "शिपिंग का जवाब (8 सेकंड): हाँ, 120 डॉलर में अमेरिका तक शिपिंग शामिल है",
+      "es": "Respuesta sobre el envío en hindi (8 s): sí, el envío a EE. UU. está incluido en 120 $"
+    },
+    "kind": "voice"
+  },
+  {
+    "id": "progress-note",
+    "file": "progress-note.m4a",
+    "role": "maker",
+    "lang": "hi",
+    "label": {
+      "en": "Progress note in Hindi (8 s): the kurta is ready, sending a photo",
+      "hi": "काम की खबर (8 सेकंड): कुर्ता तैयार है, फ़ोटो भेज रहा हूँ",
+      "es": "Nota de avance en hindi (8 s): la kurta está lista, envío una foto"
+    },
+    "kind": "voice"
+  },
+  {
+    "id": "tracking",
+    "file": "tracking.m4a",
+    "role": "maker",
+    "lang": "hi",
+    "label": {
+      "en": "Shipped in Hindi (9 s): sent with DHL, tracking number 4567891234",
+      "hi": "भेज दिया (9 सेकंड): DHL से भेजा, ट्रैकिंग नंबर 4567891234",
+      "es": "Enviado en hindi (9 s): enviado con DHL, número de seguimiento 4567891234"
+    },
+    "kind": "voice"
   }
 ]

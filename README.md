@@ -28,6 +28,18 @@ npm run dev            # server on http://localhost:8787, client on Vite's dev s
 
 `npm run build` followed by `npm start` serves the built client from the server on port 8787.
 
+## Deploy on Render
+
+In the Render dashboard choose New → Blueprint, pick this repo (Render reads `render.yaml`), enter the five secrets (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_MERCHANT_EMAIL`, `PAYPAL_BUYER_EMAIL`, `GEMINI_API_KEY`) and apply. The service builds with `npm ci && npm run build`, starts with `npm start` and is health-checked at `/healthz`. At boot the server finds or registers its PayPal webhook at `<RENDER_EXTERNAL_URL>/api/paypal/webhook`.
+
+**The hosted demo runs on Render's Free instance type** (`render.yaml`), which has no persistent disk:
+
+- The first visit after about 15 idle minutes can take up to about a minute while the instance starts.
+- Saved deals and uploads are reset whenever the instance restarts, redeploys or spins down. Nothing needs seeding: `/demo` creates a fresh deal on each visit and the sample clips ship in `samples/`. An open deal link from before a restart then says the link is not valid; start a new deal.
+- A deal lasts only until the instance restarts or spins down, so run the flow from start to finish in one sitting.
+
+**Upgrading to Starter later, with the same URL:** `render.starter.yaml` is the same `sauda` service on the Starter plan with a 1 GB disk at `/var/data` (`DATA_DIR`), so deals survive restarts. Copy it over `render.yaml` and push; the Blueprint sync changes the instance type and adds the disk on the existing service, so the `onrender.com` URL stays the same. (In the dashboard instead: Settings → Instance Type → Starter, Disks → Add Disk with mount path `/var/data`, and Environment → `DATA_DIR=/var/data`.)
+
 ## Tests
 
 ```sh

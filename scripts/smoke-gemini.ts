@@ -11,6 +11,7 @@ import { interpretTurn, type TurnInput, type TurnResult } from '../server/ai/int
 import { audioMimeFromFile } from '../server/ai/media.js';
 import { describeConfig, loadConfig } from '../server/config.js';
 import { makeDeal } from '../server/deals/store.js';
+import { mapCarrier } from '../server/domain/carriers.js';
 import { patchDeal } from '../server/domain/agreement.js';
 import { todayUtc } from '../server/domain/dates.js';
 import { addQuestions } from '../server/domain/questions.js';
@@ -29,7 +30,7 @@ if (!config.gemini.apiKey) {
 }
 const deps = { callModel: sdkCallModel(createGenAI(config.gemini)), settings: config.gemini };
 
-const deal: Deal = makeDeal({ maker: { name: 'Asha Chikan Studio', lang: 'hi' }, buyer: { name: 'Emily Carter', lang: 'en' } });
+const deal: Deal = makeDeal({ maker: { name: 'Ravi Chikan Studio', lang: 'hi' }, buyer: { name: 'Emily Carter', lang: 'en' } });
 
 const audioArg = process.argv.slice(2).find((a) => a.startsWith('--audio='))?.slice('--audio='.length);
 
@@ -52,7 +53,23 @@ async function turn(speaker: Role, input: TurnInput): Promise<TurnResult> {
   return r;
 }
 
-/** One spoken maker turn from a file. The price and deposit must come out right; the other terms are reported. */
+type Check = (r: TurnResult) => Record<string, boolean>;
+
+/** What each sample clip must produce (by file name); other files are checked as a full order (price and deposit). */
+const CLIP_CHECKS: Record<string, Check> = {
+  'shipping-answer': (r) => ({ shipping_included: r.patch.shippingIncluded === true }),
+  tracking: (r) => ({
+    intent_add_tracking: r.intent.kind === 'add_tracking',
+    carrier_dhl: mapCarrier(r.intent.carrier) === 'DHL',
+    number_4567891234: r.intent.trackingNumber === '4567891234',
+  }),
+  'progress-note': (r) => ({
+    translated_to_en: r.translation.lang === 'en' && r.translation.text.trim().length > 0,
+    mentions_kurta_or_photo: /kurta|embroider|photo|picture/i.test(r.translation.text),
+  }),
+};
+
+/** One spoken maker turn from a file. The clip's required checks must pass; the other terms are reported. */
 async function audioMain(file: string): Promise<void> {
   const mimeType = audioMimeFromFile(file);
   if (!mimeType) {
@@ -63,16 +80,18 @@ async function audioMain(file: string): Promise<void> {
   console.log(`audio: ${path.basename(file)}, ${mimeType}, ${data.length} bytes`);
   let failed = false;
   try {
-    const p = (await turn('maker', { audio: { mimeType, data } })).patch;
+    const r = await turn('maker', { audio: { mimeType, data } });
+    const p = r.patch;
     const length = p.measurements.find((m) => m.key === 'length');
-    const required = { price_120_usd: p.priceAmount === 120 && p.priceCurrency === 'USD', deposit_30_pct: p.depositPercent === 30 };
+    const clip = CLIP_CHECKS[path.basename(file).replace(/\.[^.]+$/, '')];
+    const required = clip ? clip(r) : { price_120_usd: p.priceAmount === 120 && p.priceCurrency === 'USD', deposit_30_pct: p.depositPercent === 30 };
     const info = {
       delivery_dec_10: /^\d{4}-12-10$/.test(p.deliveryDateIso ?? ''),
       length_44_in: length?.value === 44 && length.unit === 'in',
       color_light_green: /light green/i.test(p.color?.buyer ?? ''),
     };
     console.log(`checks (required): ${JSON.stringify(required)}`);
-    console.log(`checks (info): ${JSON.stringify(info)}`);
+    if (!clip) console.log(`checks (info): ${JSON.stringify(info)}`);
     if (Object.values(required).includes(false)) failed = true;
   } catch (e) {
     console.error(`audio turn failed: ${e instanceof Error ? e.message : e}`);

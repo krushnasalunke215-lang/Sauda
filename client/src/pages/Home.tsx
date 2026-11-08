@@ -67,7 +67,7 @@ function LinkRow({ label, url, open, testId }: { label: string; url: string; ope
 }
 
 /** The default parties, used by the form and by the /demo split screen. */
-export const DEMO_DEAL: CreateDealInput = { makerName: 'Asha Chikan Studio', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' };
+export const DEMO_DEAL: CreateDealInput = { makerName: 'Ravi Chikan Studio', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' };
 
 const STEPS = ['home.step1', 'home.step2', 'home.step3', 'home.step4', 'home.step5'] as const;
 

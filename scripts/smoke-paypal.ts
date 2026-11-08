@@ -36,7 +36,7 @@ const client = new PayPalClient(creds, { onCall: (_dealId, e) => show(e) });
 
 /** The spike order (USD 120, 30% deposit), confirmed by both sides, delivered in 30 days. */
 function fixtureDeal() {
-  const deal = makeDeal({ maker: { name: 'Asha Chikan Studio', lang: 'hi' }, buyer: { name: 'Emily Carter', lang: 'en' } });
+  const deal = makeDeal({ maker: { name: 'Ravi Chikan Studio', lang: 'hi' }, buyer: { name: 'Emily Carter', lang: 'en' } });
   const now = new Date();
   deal.messages.push({ id: 'm1', seq: 1, from: 'maker', kind: 'text', status: 'done', original: { text: 'smoke test', lang: 'hi' }, createdAt: now.toISOString() });
   deal.nextSeq = 2;

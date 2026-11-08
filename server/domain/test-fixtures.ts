@@ -7,7 +7,7 @@ export const NOW = new Date('2026-11-06T13:00:00Z');
 export const TODAY = '2026-11-06';
 
 export const PARTIES = {
-  maker: { name: 'Asha Chikan Studio', lang: 'hi' as const },
+  maker: { name: 'Ravi Chikan Studio', lang: 'hi' as const },
   buyer: { name: 'Emily Carter', lang: 'en' as const },
 };
 

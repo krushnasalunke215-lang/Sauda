@@ -6,7 +6,7 @@ import { EVENT_TYPES, LANGS, type Party, type Role } from '../../shared/types.js
 import { DICTS, renderEvent, tMaybe } from './i18n.js';
 
 const SERVER_DIR = fileURLToPath(new URL('../../server', import.meta.url));
-const parties: Record<Role, Party> = { maker: { name: 'Asha', lang: 'hi' }, buyer: { name: 'Emily', lang: 'en' } };
+const parties: Record<Role, Party> = { maker: { name: 'Ravi', lang: 'hi' }, buyer: { name: 'Emily', lang: 'en' } };
 const placeholders = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
 
 /** The production server sources (tests excluded). */

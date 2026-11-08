@@ -11,7 +11,6 @@ import { recordPayment } from './paypal-helpers.js';
  */
 
 const BUYER_TEXT = 'Hi! I would like a light green chikankari kurta, size medium, 44 inches long, by December 10.';
-const SHIPPING_ANSWER = 'जी हाँ, 120 डॉलर में अमेरिका तक शिपिंग शामिल है।';
 const PROGRESS_PNG = fileURLToPath(new URL('./fixtures/progress.png', import.meta.url));
 const PAYMENT_TIMEOUT = 45_000;
 
@@ -42,13 +41,14 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
   const { maker, buyer, close } = await openRoles(browser, deal);
   const pages = [maker, buyer];
 
-  // Negotiate: the buyer's English request, the maker's Hindi sample clip, the maker's typed shipping answer.
+  // Negotiate: the buyer's English request, then the maker's two Hindi sample clips (the order, then the shipping answer).
   await sendText(buyer, BUYER_TEXT);
   await settle(buyer, maker, 'buyer', 0);
   await maker.getByTestId('samples-menu').locator('summary').click();
   await maker.locator('[data-testid="sample-clip"][data-id="hindi-order"]').click();
   await settle(maker, buyer, 'maker', 0);
-  await sendText(maker, SHIPPING_ANSWER);
+  await maker.getByTestId('samples-menu').locator('summary').click();
+  await maker.locator('[data-testid="sample-clip"][data-id="shipping-answer"]').click();
   await settle(maker, buyer, 'maker', 1);
   for (const page of pages) {
     await expect(agreementValue(page, 'price')).toContainText('120.00');

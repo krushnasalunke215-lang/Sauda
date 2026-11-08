@@ -23,7 +23,7 @@ describe('buildInvoiceBody', () => {
       payment_term: { term_type: 'DUE_ON_RECEIPT' },
     });
     expect(body.detail.terms_and_conditions).toContain('$36.00');
-    expect(body.invoicer).toEqual({ business_name: 'Asha Chikan Studio', email_address: MERCHANT });
+    expect(body.invoicer).toEqual({ business_name: 'Ravi Chikan Studio', email_address: MERCHANT });
     expect(body.primary_recipients).toEqual([{ billing_info: { name: { given_name: 'Emily', surname: 'Carter' }, email_address: BUYER } }]);
     expect(body.items).toHaveLength(1);
     expect(body.items[0]).toMatchObject({ quantity: '1', unit_amount: { currency_code: 'USD', value: '120.00' }, name: expect.stringContaining('chikankari kurta') });
