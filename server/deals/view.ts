@@ -27,6 +27,7 @@ export function toView(deal: Deal, role: Role, baseUrl: string | null, now: Date
       hash,
       locked: isLocked(deal),
       summary: summaryLines(deal, deal.parties[role].lang),
+      deliveryDate: deal.terms.delivery?.value.dateIso ?? null,
     },
     messages: deal.messages,
     questions: deal.questions,

@@ -192,6 +192,8 @@ describe('deal routes', () => {
     expect(res.json()).toEqual({
       ok: true,
       commit: 'local',
+      // No built client in unit tests, so no build-info.json.
+      board: null,
       ai: { fastModel: 'gemini-3.8-flash', fallbackModel: 'gemini-4-argon', callsToday: 0, limit: 500 },
       webhook: { configured: false, lastVerifiedAt: null },
     });

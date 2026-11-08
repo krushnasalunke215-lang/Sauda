@@ -377,6 +377,8 @@ export interface AgreementView {
   locked: boolean;
   /** Lines for the confirm card, in the viewer's language. */
   summary: string[];
+  /** The agreed delivery date (YYYY-MM-DD), for the production board. */
+  deliveryDate: string | null;
 }
 
 export interface ConfirmationView {

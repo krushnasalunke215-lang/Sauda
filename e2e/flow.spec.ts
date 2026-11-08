@@ -30,9 +30,18 @@ async function settle(sender: Page, viewer: Page, from: Role, nth: number): Prom
   await waitForDoneMessage(viewer, from, nth);
 }
 
-async function showTab(page: Page, tab: 'deal' | 'timeline'): Promise<void> {
+async function showTab(page: Page, tab: 'deal' | 'timeline' | 'board'): Promise<void> {
   await page.getByTestId(`tab-${tab}`).click();
-  await expect(page.getByTestId(tab === 'deal' ? 'agreement' : 'timeline')).toBeVisible();
+  await expect(page.getByTestId({ deal: 'agreement', timeline: 'timeline', board: 'board' }[tab])).toBeVisible();
+}
+
+/** Checks rows of this deal on the maker's production board (fallback or Bryntum), then goes back to the deal tab. */
+async function expectBoard(maker: Page, dealId: string, states: Record<string, 'done' | 'ready' | 'locked'>): Promise<void> {
+  await showTab(maker, 'board');
+  for (const [key, state] of Object.entries(states)) {
+    await expect(maker.locator(`[data-testid="board-row-${key}"][data-order="${dealId}"]`)).toHaveAttribute('data-state', state);
+  }
+  await showTab(maker, 'deal');
 }
 
 test('a full deal: invoice, deposit, progress photo, balance and the tracking card, with recorded payments', async ({ browser, request }) => {
@@ -106,6 +115,9 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
   }
   await expect(buyer.getByTestId('pay-deposit')).toHaveCount(0);
   await expect(buyer.getByTestId('pay-balance')).toHaveCount(0);
+  // The deposit gate opens the work on the maker's production board; packing stays locked behind the balance.
+  await expect(buyer.getByTestId('tab-board')).toHaveCount(0);
+  await expectBoard(maker, deal.id, { deposit_paid: 'done', cutting_embroidery: 'ready', balance_paid: 'ready', pack_ship: 'locked' });
 
   // The maker sends the progress photo, Gemini checks it (Retry if the AI failed), and the buyer approves it.
   await maker.locator('[data-testid="photo-input"][data-kind="progress"]').setInputFiles(PROGRESS_PNG);
@@ -138,6 +150,7 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
     await expect(page.getByTestId('phase')).toHaveAttribute('data-phase', 'paid');
     await expect(page.getByTestId('invoice-due')).toHaveText('$0.00');
   }
+  await expectBoard(maker, deal.id, { cutting_embroidery: 'done', balance_paid: 'done', pack_ship: 'ready' });
 
   // Tracking needs PayPal checkout payments; recorded payments have none, and the card says so.
   await maker.getByTestId('tracking-carrier').selectOption('DHL');

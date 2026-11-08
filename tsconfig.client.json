@@ -10,5 +10,6 @@
     "skipLibCheck": true,
     "types": ["vite/client"]
   },
-  "include": ["client/src", "shared"]
+  "include": ["client/src", "shared"],
+  "exclude": ["client/src/board/BryntumBoard.tsx"]
 }

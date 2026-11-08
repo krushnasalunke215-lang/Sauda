@@ -19,7 +19,7 @@ import { TimelineRecorder } from './paypal/timeline.js';
 import type { ToolkitFactory } from './paypal/toolkit.js';
 import { WebhookManager } from './paypal/webhooks.js';
 import { dealRoutes } from './routes/deals.js';
-import { healthRoutes } from './routes/health.js';
+import { healthRoutes, readBoardKind } from './routes/health.js';
 import { mediaRoutes } from './routes/media.js';
 import { paypalRoutes } from './routes/paypal.js';
 import { photoRoutes } from './routes/photos.js';
@@ -175,6 +175,7 @@ export async function buildApp(deps: AppDeps): Promise<{ app: FastifyInstance; s
     deps.config,
     () => payments.webhooks.status(),
     () => deps.budget?.status() ?? { callsToday: 0, limit: deps.config.aiDailyCallLimit },
+    readBoardKind(deps.staticDir),
   );
   dealRoutes(app, { store: deps.store, service, samples, publicBaseUrl: deps.config.publicBaseUrl });
   mediaRoutes(app, { store: deps.store, service });

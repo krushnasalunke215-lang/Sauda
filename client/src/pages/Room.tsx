@@ -10,6 +10,7 @@ import { CopyButton } from '../components/CopyButton.js';
 import { Icon } from '../components/Icon.js';
 import { MoneyTimeline } from '../components/MoneyTimeline.js';
 import { PaymentPanel } from '../components/PaymentPanel.js';
+import { ProductionBoard } from '../components/ProductionBoard.js';
 import { ProposalsPanel } from '../components/ProposalCard.js';
 import { QuestionsPanel } from '../components/QuestionsPanel.js';
 import { renderError, t } from '../i18n.js';
@@ -158,7 +159,7 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
   const [error, setError] = useState<string | null>(null);
   const [samples, setSamples] = useState<SampleInfo[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tab, setTab] = useState<'deal' | 'timeline'>('deal');
+  const [tab, setTab] = useState<'deal' | 'timeline' | 'board'>('deal');
   const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
   const narrow = useNarrow();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -372,6 +373,8 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
 
   // Below 768 px the buyer gets one column with tabs and a sticky composer; the maker keeps the stacked columns.
   const mobile = narrow && view.role === 'buyer';
+  // The production board is the maker's (FEAT-005).
+  const board = tab === 'board' && view.role === 'maker';
 
   return (
     <JudgeMode.Provider value={judge}>
@@ -460,7 +463,12 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
           </div>
         </>
       ) : (
-        <div className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem)] lg:flex-none lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-[minmax(0,1fr)]">
+        <div
+          className={`mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem)] lg:flex-none lg:grid-rows-[minmax(0,1fr)] ${
+            // The production board needs a wide side panel; the chat narrows while it is open.
+            board ? 'lg:grid-cols-[minmax(340px,1fr)_minmax(0,1.6fr)]' : 'lg:grid-cols-[minmax(0,1fr)_400px]'
+          }`}
+        >
           <section className={`${ui.card} flex min-h-[70vh] flex-col overflow-hidden lg:min-h-0`}>
             {chat}
             {notices}
@@ -469,7 +477,7 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
 
           <aside className="scroll-quiet flex min-h-0 flex-col gap-4 lg:-mr-2 lg:overflow-y-auto lg:pr-2">
             <div className="flex shrink-0 gap-1 rounded-xl bg-stone-200/60 p-1 text-sm" role="tablist">
-              {(['deal', 'timeline'] as const).map((k) => (
+              {(view.role === 'maker' ? (['deal', 'timeline', 'board'] as const) : (['deal', 'timeline'] as const)).map((k) => (
                 <button
                   key={k}
                   type="button"
@@ -488,7 +496,9 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
                 </button>
               ))}
             </div>
-            {tab === 'timeline' ? (
+            {board ? (
+              <ProductionBoard view={view} lang={lang} />
+            ) : tab === 'timeline' ? (
               <MoneyTimeline view={view} lang={lang} />
             ) : (
               <>
