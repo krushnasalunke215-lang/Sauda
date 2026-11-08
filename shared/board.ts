@@ -34,6 +34,8 @@ export interface BoardRow {
   endDate: string;
   state: BoardRowState;
   percentDone: number;
+  /** Locked rows: the step that blocks them (the first lock before them that is not done). */
+  blockedBy?: BoardRowKey;
 }
 
 export interface BoardDependency {
@@ -116,10 +118,11 @@ export function buildBoard(view: DealView): Board {
   const item = view.agreement.rows.find((r) => r.field === 'item')?.value ?? null;
   const sample = SAMPLE_ORDER_IDS.includes(view.id);
   const children: BoardRow[] = [];
-  let open = true;
+  let blocker: BoardRowKey | null = null;
   for (const s of specs) {
-    const state: BoardRowState = s.done ? 'done' : open ? 'ready' : 'locked';
-    if (s.lock && !s.done) open = false;
+    const state: BoardRowState = s.done ? 'done' : blocker ? 'locked' : 'ready';
+    const blockedBy = state === 'locked' && blocker ? blocker : undefined;
+    if (s.lock && !s.done && !blocker) blocker = s.key;
     children.push({
       id: `${view.id}:${s.key}`,
       parentId: view.id,
@@ -132,6 +135,7 @@ export function buildBoard(view: DealView): Board {
       endDate: iso(s.to),
       state,
       percentDone: state === 'done' ? 100 : 0,
+      ...(blockedBy ? { blockedBy } : {}),
     });
   }
 

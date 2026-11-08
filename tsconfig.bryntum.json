@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.client.json",
+  "include": ["client/src/board/BryntumBoard.tsx", "client/src/board/virtual.d.ts"],
+  "exclude": []
+}

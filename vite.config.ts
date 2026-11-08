@@ -14,7 +14,8 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
  * FallbackBoard.tsx otherwise. dist/client/build-info.json records the choice for /healthz.
  */
 function saudaBoard(): Plugin {
-  const pkg = path.join(ROOT, 'node_modules', '@bryntum', 'gantt');
+  // Bryntum Gantt Community tier (MIT), installed by scripts/install-bryntum.mjs.
+  const pkg = path.join(ROOT, 'node_modules', '@bryntum', 'gantt-community');
   const kind = existsSync(path.join(pkg, 'package.json')) && existsSync(path.join(pkg, 'gantt.css')) ? 'bryntum' : 'fallback';
   const file = path.join(ROOT, 'client', 'src', 'board', kind === 'bryntum' ? 'BryntumBoard.tsx' : 'FallbackBoard.tsx');
   return {
@@ -37,6 +38,8 @@ export default defineConfig({
   build: {
     outDir: '../dist/client',
     emptyOutDir: true,
+    // The Bryntum board is a lazy chunk of ~2 MB, loaded only on the maker's board tab.
+    chunkSizeWarningLimit: 2500,
   },
   server: {
     proxy: {

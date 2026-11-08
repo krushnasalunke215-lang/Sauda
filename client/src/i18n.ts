@@ -247,6 +247,9 @@ const en = {
   'board.state.ready': 'Ready',
   'board.state.locked': 'Locked',
   'board.expand': 'Show steps',
+  'board.loading': 'Loading the board…',
+  'board.waiting': 'Waiting for the PayPal payment',
+  'board.lockedBy': 'Locked until: {gate}',
 
   'pay.title': 'Payment',
   'pay.empty': 'The PayPal invoice appears here once both sides confirm the agreement.',
@@ -619,6 +622,9 @@ const hi: Dict = {
   'board.state.ready': 'तैयार',
   'board.state.locked': 'बंद',
   'board.expand': 'कदम दिखाएँ',
+  'board.loading': 'बोर्ड खुल रहा है…',
+  'board.waiting': 'PayPal भुगतान का इंतज़ार',
+  'board.lockedBy': 'तब तक बंद: {gate}',
 
   'pay.title': 'भुगतान',
   'pay.empty': 'दोनों के समझौता पक्का करने के बाद PayPal इनवॉइस यहाँ दिखेगा।',
@@ -988,6 +994,9 @@ const es: Dict = {
   'board.state.ready': 'Listo',
   'board.state.locked': 'Bloqueado',
   'board.expand': 'Mostrar pasos',
+  'board.loading': 'Cargando el tablero…',
+  'board.waiting': 'Esperando el pago de PayPal',
+  'board.lockedBy': 'Bloqueado hasta: {gate}',
 
   'pay.title': 'Pago',
   'pay.empty': 'La factura de PayPal aparece aquí cuando ambas partes confirmen el acuerdo.',

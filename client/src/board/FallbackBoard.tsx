@@ -5,7 +5,7 @@ import { Icon } from '../components/Icon.js';
 import { t } from '../i18n.js';
 import { useJudge } from '../judge.js';
 import { ui } from '../ui.js';
-import { formatDay, rowLabel, startsExpanded, type BoardProps } from './props.js';
+import { formatDay, isWaitingGate, rowLabel, rowTitle, startsExpanded, type BoardProps } from './props.js';
 
 /**
  * The production board without Bryntum: a CSS grid with the step names on the left and a date axis
@@ -53,7 +53,7 @@ export function Board({ rows, startDate, endDate, lang }: BoardProps) {
 
   const track = (r: BoardRow) => {
     const left = pct(r.startDate);
-    const title = `${rowLabel(r, lang, judge)} · ${formatDay(r.startDate, lang)}${r.endDate !== r.startDate ? `–${formatDay(r.endDate, lang)}` : ''} · ${t(lang, `board.state.${r.state}`)}`;
+    const title = `${rowTitle(r, lang, judge)} · ${formatDay(r.startDate, lang)}${r.endDate !== r.startDate ? `–${formatDay(r.endDate, lang)}` : ''}`;
     if (r.kind === 'order')
       return (
         <div title={title} className="absolute top-1/2 h-1.5 -translate-y-1/2 overflow-hidden rounded-full bg-stone-200" style={{ left: `${left}%`, width: `${pct(r.endDate) - left}%` }}>
@@ -109,7 +109,7 @@ export function Board({ rows, startDate, endDate, lang }: BoardProps) {
                   <span className="truncate">{rowLabel(r, lang, judge)}</span>
                 </button>
               ) : (
-                <div className={`flex min-w-0 items-center gap-2 py-1.5 pl-5 ${locked ? 'text-stone-400' : 'text-stone-700'}`}>
+                <div title={rowTitle(r, lang, judge)} className={`flex min-w-0 items-center gap-2 py-1.5 pl-5 ${locked ? 'text-stone-400' : 'text-stone-700'}`}>
                   <StateMark state={r.state} lang={lang} />
                   <span className={`truncate text-[13px] ${r.kind === 'gate' && !locked ? 'font-medium text-stone-900' : ''}`}>{rowLabel(r, lang, judge)}</span>
                 </div>
@@ -119,6 +119,16 @@ export function Board({ rows, startDate, endDate, lang }: BoardProps) {
                   <span key={ms} className="absolute inset-y-0 w-px bg-stone-100" style={{ left: `${((ms - from) / span) * 100}%` }} aria-hidden />
                 ))}
                 {track(r)}
+                {isWaitingGate(r, rows) && (
+                  <span
+                    data-testid="board-waiting"
+                    className="absolute top-1/2 inline-flex -translate-y-1/2 items-center gap-1 whitespace-nowrap rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800"
+                    style={{ left: `calc(${pct(r.startDate)}% + 14px)` }}
+                  >
+                    <Icon name="clock" size={12} />
+                    {t(lang, 'board.waiting')}
+                  </span>
+                )}
               </div>
             </div>
           );

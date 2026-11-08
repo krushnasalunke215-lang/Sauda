@@ -150,6 +150,13 @@ describe('buildBoard', () => {
     });
   });
 
+  it('names the gate that blocks each locked row', () => {
+    const blocked = (v: DealView) => Object.fromEntries(buildBoard(v).rows.filter((r) => r.blockedBy).map((r) => [r.key, r.blockedBy]));
+    expect(blocked(invoiced(baseView()))).toMatchObject({ cutting_embroidery: 'deposit_paid', pack_ship: 'deposit_paid' });
+    expect(blocked(deposit(baseView()))).toEqual({ pack_ship: 'balance_paid', tracking_added: 'balance_paid', ship_by: 'balance_paid' });
+    expect(blocked(paid(baseView()))).toEqual({});
+  });
+
   it('photo approved: cutting and embroidery is done once the progress photo exists', () => {
     expect(states(approved(baseView()))).toMatchObject({ cutting_embroidery: 'done', photo_approved: 'done', balance_paid: 'ready', pack_ship: 'locked' });
     // A failed photo does not count.

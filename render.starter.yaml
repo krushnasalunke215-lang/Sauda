@@ -8,7 +8,7 @@ services:
     runtime: node
     plan: starter
     region: oregon
-    buildCommand: npm ci && npm run build
+    buildCommand: npm ci && npm run bryntum:install && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
     disk:

@@ -46,7 +46,9 @@ export default defineConfig({
         command: 'npm run build && npm start',
         cwd: ROOT,
         url: `http://localhost:${LOCAL_PORT}/healthz`,
-        timeout: 120_000,
+        // Build + boot. With the Bryntum board the build bundles ~2 MB more; on a busy machine the
+        // build took 67 s and the boot 44 s (FEAT-005), past the old 120 s.
+        timeout: 240_000,
         reuseExistingServer: false,
         env: { PORT: String(LOCAL_PORT), DATA_DIR: '.tmp/e2e-data' },
       },
