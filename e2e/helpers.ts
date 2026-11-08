@@ -1,7 +1,7 @@
 import { expect, type APIRequestContext, type Browser, type BrowserContextOptions, type Locator, type Page } from '@playwright/test';
 import type { CreateDealInput, CreateDealResult, Role } from '../shared/types.js';
 
-export const DEFAULT_DEAL: CreateDealInput = { makerName: 'Ravi Chikan Studio', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' };
+export const DEFAULT_DEAL: CreateDealInput = { makerName: 'Ravi Chikan', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' };
 
 export async function createDeal(request: APIRequestContext, input: Partial<CreateDealInput> = {}): Promise<CreateDealResult> {
   const res = await request.post('/api/deals', { data: { ...DEFAULT_DEAL, ...input } });

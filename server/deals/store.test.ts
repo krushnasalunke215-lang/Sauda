@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { openDb } from '../db.js';
 import { DealStore, makeDeal, newDealId, newToken } from './store.js';
 
-const PARTIES = { maker: { name: 'Ravi Chikan Studio', lang: 'hi' }, buyer: { name: 'Emily Carter', lang: 'en' } } as const;
+const PARTIES = { maker: { name: 'Ravi Chikan', lang: 'hi' }, buyer: { name: 'Emily Carter', lang: 'en' } } as const;
 
 function setup() {
   const store = new DealStore(openDb(':memory:'));

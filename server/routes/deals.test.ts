@@ -40,7 +40,7 @@ async function setup(interpret: Interpreter) {
   const res = await app.inject({
     method: 'POST',
     url: '/api/deals',
-    payload: { makerName: 'Ravi Chikan Studio', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' },
+    payload: { makerName: 'Ravi Chikan', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' },
   });
   const created = res.json() as CreateDealResult;
   return { app, service: built.service as DealService, res, created };

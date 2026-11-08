@@ -106,7 +106,7 @@ export async function testApp(opts: TestAppOptions = {}): Promise<TestApp> {
   const res = await app.inject({
     method: 'POST',
     url: '/api/deals',
-    payload: { makerName: 'Ravi Chikan Studio', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' },
+    payload: { makerName: 'Ravi Chikan', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' },
   });
   return {
     app,

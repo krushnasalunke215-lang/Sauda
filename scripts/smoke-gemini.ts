@@ -30,7 +30,7 @@ if (!config.gemini.apiKey) {
 }
 const deps = { callModel: sdkCallModel(createGenAI(config.gemini)), settings: config.gemini };
 
-const deal: Deal = makeDeal({ maker: { name: 'Ravi Chikan Studio', lang: 'hi' }, buyer: { name: 'Emily Carter', lang: 'en' } });
+const deal: Deal = makeDeal({ maker: { name: 'Ravi Chikan', lang: 'hi' }, buyer: { name: 'Emily Carter', lang: 'en' } });
 
 const audioArg = process.argv.slice(2).find((a) => a.startsWith('--audio='))?.slice('--audio='.length);
 
