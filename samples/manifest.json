@@ -58,5 +58,29 @@
       "es": "Enviado en hindi (9 s): enviado con DHL, número de seguimiento 4567891234"
     },
     "kind": "voice"
+  },
+  {
+    "id": "reference",
+    "file": "reference.jpg",
+    "role": "buyer",
+    "lang": "en",
+    "label": {
+      "en": "Sample reference photo: a plain light green colour swatch",
+      "hi": "सैंपल नमूने की फ़ोटो: हल्के हरे रंग का सादा नमूना",
+      "es": "Foto de referencia de muestra: una muestra lisa de color verde claro"
+    },
+    "kind": "photo"
+  },
+  {
+    "id": "progress",
+    "file": "progress.jpg",
+    "role": "maker",
+    "lang": "hi",
+    "label": {
+      "en": "Sample progress photo: a plain light green colour swatch",
+      "hi": "सैंपल काम की फ़ोटो: हल्के हरे रंग का सादा नमूना",
+      "es": "Foto de avance de muestra: una muestra lisa de color verde claro"
+    },
+    "kind": "photo"
   }
 ]

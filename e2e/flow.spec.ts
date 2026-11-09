@@ -1,4 +1,3 @@
-import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import type { DealView, Role } from '../shared/types.js';
 import { agreementValue, createDeal, openRoles, sendText, waitForDoneMessage } from './helpers.js';
@@ -11,7 +10,6 @@ import { recordPayment } from './paypal-helpers.js';
  */
 
 const BUYER_TEXT = 'Hi! I would like a light green chikankari kurta, size medium, 44 inches long, by December 10.';
-const PROGRESS_PNG = fileURLToPath(new URL('./fixtures/progress.png', import.meta.url));
 const PAYMENT_TIMEOUT = 45_000;
 
 /** Waits until the sender's nth message is interpreted, pressing Retry if the AI failed, then checks the other page. */
@@ -49,6 +47,9 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
   const deal = await createDeal(request);
   const { maker, buyer, close } = await openRoles(browser, deal);
   const pages = [maker, buyer];
+  // Before the invoice the buyer can use the sample reference photo; the maker has no photo buttons before the deposit.
+  await expect(buyer.locator('[data-testid="sample-photo"][data-kind="reference"]')).toBeVisible();
+  await expect(maker.getByTestId('sample-photo')).toHaveCount(0);
 
   // Negotiate: the buyer's English request, then the maker's two Hindi sample clips (the order, then the shipping answer).
   await sendText(buyer, BUYER_TEXT);
@@ -124,8 +125,9 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
   await expect(buyer.getByTestId('tab-board')).toHaveCount(0);
   await expectBoard(maker, deal.id, { deposit_paid: 'done', cutting_embroidery: 'ready', balance_paid: 'ready', pack_ship: 'locked' });
 
-  // The maker sends the progress photo, Gemini checks it (Retry if the AI failed), and the buyer approves it.
-  await maker.locator('[data-testid="photo-input"][data-kind="progress"]').setInputFiles(PROGRESS_PNG);
+  // The maker sends the sample progress photo (samples/progress.jpg, through the normal photo upload),
+  // Gemini checks it (Retry if the AI failed), and the buyer approves it.
+  await maker.locator('[data-testid="sample-photo"][data-kind="progress"]').click();
   const makerPhoto = maker.locator('[data-testid="message"][data-kind="photo"]').last();
   await expect
     .poll(

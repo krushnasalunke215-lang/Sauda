@@ -68,6 +68,21 @@ describe('sample clips', () => {
     expect(served.rawPayload.equals(sample)).toBe(true);
   });
 
+  it('lists the sample photos (buyer reference, maker progress) and serves them as JPEG', async () => {
+    t = await testApp();
+    const list = (await t.app.inject({ method: 'GET', url: '/api/samples' })).json() as SampleInfo[];
+    expect(list.filter((s) => s.kind === 'photo').map(({ id, role }) => ({ id, role }))).toEqual([
+      { id: 'reference', role: 'buyer' },
+      { id: 'progress', role: 'maker' },
+    ]);
+    for (const id of ['reference', 'progress']) {
+      const res = await t.app.inject({ method: 'GET', url: `/api/samples/${id}/file` });
+      expect(res.statusCode).toBe(200);
+      expect(res.headers['content-type']).toBe('image/jpeg');
+      expect(res.rawPayload.equals(readFileSync(path.join(ROOT_DIR, 'samples', `${id}.jpg`)))).toBe(true);
+    }
+  });
+
   it('serves a sample file by id, and 404 for an unknown id', async () => {
     t = await testApp();
     const res = await t.app.inject({ method: 'GET', url: '/api/samples/hindi-order/file' });
