@@ -18,7 +18,8 @@ export interface ModelRequest {
 /** One model call that returns the raw response text. Injected so tests can use fakes. */
 export type CallModel = (req: ModelRequest) => Promise<string>;
 
-export type AttemptOutcome = 'ok' | 'timeout' | 'invalid' | 'error';
+/** 'cancelled': stopped because the other model answered first. */
+export type AttemptOutcome = 'ok' | 'timeout' | 'invalid' | 'error' | 'cancelled';
 
 export interface Attempt {
   model: string;
@@ -86,17 +87,23 @@ export function sdkCallModel(ai: GoogleGenAI): CallModel {
 }
 
 class TimeoutError extends Error {}
+class CancelledError extends Error {}
 
+type Settled<T> = { attempt: Attempt; data?: T };
+
+/** One model call; never rejects. `cancel` stops it early (outcome 'cancelled'). */
 async function attempt<T>(
   model: string,
   thinkingLow: boolean,
   timeoutMs: number,
   req: { parts: Part[]; system: string; schema: object; validate: Validate },
   callModel: CallModel,
-): Promise<{ attempt: Attempt; data?: T }> {
+  cancel: AbortSignal,
+): Promise<Settled<T>> {
   const t0 = performance.now();
   const ctrl = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let onCancel = () => {};
   // Our own timer wins even if the SDK ignores the abort signal.
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
@@ -104,9 +111,20 @@ async function attempt<T>(
       reject(new TimeoutError());
     }, timeoutMs);
   });
+  const cancelled = new Promise<never>((_, reject) => {
+    onCancel = () => {
+      ctrl.abort();
+      reject(new CancelledError());
+    };
+    cancel.addEventListener('abort', onCancel, { once: true });
+  });
   const ms = () => Math.round(performance.now() - t0);
   try {
-    const text = await Promise.race([callModel({ model, parts: req.parts, system: req.system, schema: req.schema, thinkingLow, timeoutMs, signal: ctrl.signal }), timeout]);
+    const text = await Promise.race([
+      callModel({ model, parts: req.parts, system: req.system, schema: req.schema, thinkingLow, timeoutMs, signal: ctrl.signal }),
+      timeout,
+      cancelled,
+    ]);
     let parsed: unknown;
     try {
       parsed = JSON.parse(text);
@@ -116,17 +134,22 @@ async function attempt<T>(
     if (!req.validate(parsed)) return { attempt: { model, ms: ms(), outcome: 'invalid', detail: 'schema validation failed' } };
     return { attempt: { model, ms: ms(), outcome: 'ok' }, data: parsed as T };
   } catch (e) {
+    if (e instanceof CancelledError) return { attempt: { model, ms: ms(), outcome: 'cancelled' } };
     if (e instanceof TimeoutError || ctrl.signal.aborted) return { attempt: { model, ms: ms(), outcome: 'timeout' } };
     const detail = e instanceof Error ? e.message.slice(0, 200) : 'error';
     return { attempt: { model, ms: ms(), outcome: 'error', detail } };
   } finally {
     clearTimeout(timer);
+    cancel.removeEventListener('abort', onCancel);
   }
 }
 
 /**
- * Asks the fast model (thinking LOW, short timeout) first; on a timeout, an error, unparseable JSON or
- * a schema failure it asks the fallback model (default thinking, longer timeout). Each attempt
+ * Asks the fast model (thinking LOW) first. When it fails (an error, unparseable JSON or a schema
+ * failure) or has not answered within fastTimeoutMs, the fallback model (default thinking,
+ * fallbackTimeoutMs) is asked too. A fast call that is only slow keeps running until the fallback's
+ * deadline, and the first valid answer wins: when Vertex is busy, Flash can take 10-25 s while the
+ * fallback returns 429 RESOURCE_EXHAUSTED, and the late Flash answer is then still used. Each attempt
  * reserves one call from the daily budget first.
  */
 export async function generateJson<T>(
@@ -135,14 +158,35 @@ export async function generateJson<T>(
 ): Promise<GenerateResult<T>> {
   const { settings, callModel } = deps;
   const t0 = performance.now();
-  const attempts: Attempt[] = [];
+  const done = (data: T, model: string, fallback: boolean, attempts: Attempt[]): GenerateResult<T> => ({ data, model, ms: Math.round(performance.now() - t0), fallback, attempts });
+
   deps.budget?.reserve();
-  const fast = await attempt<T>(settings.fastModel, true, settings.fastTimeoutMs, req, callModel);
-  attempts.push(fast.attempt);
-  if (fast.data !== undefined) return { data: fast.data, model: settings.fastModel, ms: Math.round(performance.now() - t0), fallback: false, attempts };
-  deps.budget?.reserve();
-  const slow = await attempt<T>(settings.fallbackModel, false, settings.fallbackTimeoutMs, req, callModel);
-  attempts.push(slow.attempt);
-  if (slow.data !== undefined) return { data: slow.data, model: settings.fallbackModel, ms: Math.round(performance.now() - t0), fallback: true, attempts };
+  const stopFast = new AbortController();
+  const fast = attempt<T>(settings.fastModel, true, settings.fastTimeoutMs + settings.fallbackTimeoutMs, req, callModel, stopFast.signal);
+  let switchTimer: ReturnType<typeof setTimeout> | undefined;
+  const early = await Promise.race([fast, new Promise<null>((resolve) => (switchTimer = setTimeout(() => resolve(null), settings.fastTimeoutMs)))]);
+  clearTimeout(switchTimer);
+  if (early?.data !== undefined) return done(early.data, settings.fastModel, false, [early.attempt]);
+
+  try {
+    deps.budget?.reserve();
+  } catch (e) {
+    stopFast.abort();
+    throw e;
+  }
+  const stopSlow = new AbortController();
+  const slow = attempt<T>(settings.fallbackModel, false, settings.fallbackTimeoutMs, req, callModel, stopSlow.signal);
+  // Waits for the first valid answer, or for every running attempt to fail.
+  await new Promise<void>((resolve) => {
+    const running = early ? [slow] : [fast, slow];
+    let open = running.length;
+    for (const p of running) void p.then((r) => (r.data !== undefined || --open === 0 ? resolve() : undefined));
+  });
+  stopFast.abort();
+  stopSlow.abort();
+  const [f, s] = await Promise.all([early ?? fast, slow]);
+  const attempts = [f.attempt, s.attempt];
+  if (f.data !== undefined) return done(f.data, settings.fastModel, false, attempts);
+  if (s.data !== undefined) return done(s.data, settings.fallbackModel, true, attempts);
   throw new AiUnavailableError(req.label, attempts);
 }
