@@ -182,5 +182,10 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
     for (const debug of await calls.evaluateAll((els) => els.map((e) => e.getAttribute('data-debug')))) expect(debug).toMatch(/^[0-9a-f]{8,}$/);
   }
 
+  // Which model produced each AI result, for the Gemini fallback rate of repeated runs (no tokens printed).
+  const final = (await (await request.get(`/api/deals/${deal.id}`, { headers: { 'x-sauda-token': deal.maker.token } })).json()) as DealView;
+  const ai = final.messages.flatMap((m) => (m.ai ? [m.ai] : []));
+  console.log(`deal ${deal.id}: ${ai.filter((a) => a.fallback).length} of ${ai.length} AI results from the fallback model`);
+
   await close();
 });
