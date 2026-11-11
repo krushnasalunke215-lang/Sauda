@@ -1,0 +1,41 @@
+# systemd unit for the hosted demo on AWS Lightsail (see "Hosting on AWS Lightsail" in the README).
+# sauda-redeploy installs it as /etc/systemd/system/sauda.service. PayPal runs in the sandbox only.
+[Unit]
+Description=Sauda deal room
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sauda
+Group=sauda
+# A symlink to the folder of the deployed commit, switched by sauda-redeploy.
+WorkingDirectory=/opt/sauda/current
+# The five secrets (PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_MERCHANT_EMAIL,
+# PAYPAL_BUYER_EMAIL, GEMINI_API_KEY): owned by sauda, mode 600, never in git.
+EnvironmentFile=/etc/sauda/sauda.env
+# RENDER_GIT_COMMIT=<deployed commit>, written by sauda-redeploy: the variable /healthz reports.
+EnvironmentFile=-/etc/sauda/commit.env
+Environment=PORT=8787
+# The SQLite database and the uploaded media, on the instance's persistent disk.
+Environment=DATA_DIR=/var/lib/sauda
+Environment=PUBLIC_BASE_URL=https://184-193-2-247.sslip.io
+Environment=GEMINI_BACKEND=vertex
+Environment=GEMINI_FAST_MODEL=gemini-3.8-flash
+Environment=GEMINI_FALLBACK_MODEL=gemini-4-argon
+Environment=GEMINI_FAST_TIMEOUT_MS=8000
+Environment=GEMINI_FALLBACK_TIMEOUT_MS=30000
+Environment=AI_DAILY_CALL_LIMIT=500
+ExecStart=/usr/local/bin/node --disable-warning=ExperimentalWarning --import tsx server/index.ts
+Restart=always
+RestartSec=3
+TimeoutStopSec=15
+StateDirectory=sauda
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

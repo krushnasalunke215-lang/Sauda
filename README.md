@@ -2,15 +2,15 @@
 
 **A live deal room where a Hindi-speaking maker and an English-speaking buyer agree a custom order in their own languages, and PayPal Invoicing runs the deposit, the balance and the shipment.**
 
-- **Hosted demo:** https://sauda-95sg.onrender.com (PayPal sandbox only, no real money)
+- **Hosted demo:** https://184-193-2-247.sslip.io (PayPal sandbox only, no real money), on AWS. Backup mirror on Render: https://sauda-95sg.onrender.com
 - **Video:** VIDEO_URL
 - **Code:** https://github.com/krushnasalunke215-lang/Sauda (MIT)
 
 ![Maker and buyer side by side on /demo](docs/images/demo-split.png)
 
-## Try it in 60 seconds
+## Try it in 2 minutes
 
-1. Open https://sauda-95sg.onrender.com/demo. It creates a fresh deal and shows the maker (Hindi) on the left and the buyer (English) on the right, in judge mode, which adds the model, the latency and the message number to each turn. The demo runs on Render's free instance, so the first visit after a quiet spell can take about a minute to wake up.
+1. Open https://184-193-2-247.sslip.io/demo. It creates a fresh deal and shows the maker (Hindi) on the left and the buyer (English) on the right, in judge mode, which adds the model, the latency and the message number to each turn.
 2. On the buyer side, type in English or tap one of the sample messages above the input box.
 3. On the maker side, open the sample clips menu (the headphones button, **सैंपल क्लिप**; the maker's screen is in Hindi) and press the first clip, the full order spoken by a real Hindi speaker. Gemini transcribes and translates it, and the agreement fills in on both sides. The AI then asks whether the price includes shipping; press the shipping clip to answer it.
 4. Press **Confirm this agreement** on the buyer side and **यह समझौता पक्का करें** on the maker side, then **मंज़ूर करें** (Approve) on the maker's invoice card. A real sandbox invoice is created and sent.
@@ -37,7 +37,7 @@ The demo pair is Ravi, a chikankari tailor in Lucknow who speaks Hindi, and Emil
 
   ![Both sides confirmed; the buyer waits for the maker to approve the invoice](docs/images/confirm.png)
 
-- **PayPal runs the money.** One PayPal invoice carries the bilingual agreement. The deposit (30%) is the minimum payment, so the buyer pays it first. The maker sees "Deposit received" in Hindi on screen. After the buyer approves a progress photo, the balance is paid on the same invoice, and the maker's spoken tracking number becomes PayPal tracking.
+- **PayPal runs the money.** One PayPal invoice carries the bilingual agreement. The deposit (30%) is the minimum payment, so the buyer pays it first. The maker sees "Deposit received" in Hindi on screen. After the buyer approves a progress photo, the balance is paid on the same invoice, and the maker's spoken tracking number becomes PayPal tracking. The payments in these screenshots were recorded through the API; the video shows a real sandbox checkout.
 
   ![The maker sees the deposit arrive, in Hindi](docs/images/payment-deposit.png)
 
@@ -86,7 +86,7 @@ All model calls go to Gemini on Vertex AI (express mode) through the Google Gen 
 
 Every model attempt, including fallbacks and speech, first reserves a call from a daily budget (`AI_DAILY_CALL_LIMIT`, default 500) in [server/ai/budget.ts](server/ai/budget.ts).
 
-**Latency.** In the Day-0 test on the user's 23 s Hindi clip, Flash at LOW answered in 4.2 to 5.3 s and Argon in 6.2 to 8.6 s, both with every term right. Flash had rare long outliers (one call took 113 s), which is why Argon is asked after 8 s. Flash keeps running meanwhile, because when Vertex AI is busy Flash may still answer at 10 to 25 s while Argon returns 429 (quota). On the hosted demo on Nov 11, Flash answered text turns in 3 to 4 s and the Hindi clips and photo checks in 3.5 to 14 s. In judge mode each message shows which model answered and how long it took.
+**Latency.** In the Day-0 test on the author's 23 s Hindi clip, Flash at LOW answered in 4.2 to 5.3 s and Argon in 6.2 to 8.6 s, both with every term right. Flash had rare long outliers (one call took 113 s), which is why Argon is asked after 8 s. Flash keeps running meanwhile, because when Vertex AI is busy Flash may still answer at 10 to 25 s while Argon returns 429 (quota). On the hosted demo on Nov 11, Flash answered text turns in 3 to 4 s and the Hindi clips and photo checks in 3.5 to 14 s. In judge mode each message shows which model answered and how long it took.
 
 **AI tools used to build Sauda:** Kiro, as the coding agent.
 
@@ -96,7 +96,7 @@ Every model attempt, including fallbacks and speech, first reserves a call from 
 flowchart LR
   M["Maker browser<br/>React + Vite"] <-->|"Socket.IO snapshots + REST"| S
   B["Buyer browser<br/>React + Vite"] <-->|"Socket.IO snapshots + REST"| S
-  subgraph R["Render web service"]
+  subgraph R["AWS Lightsail server (Render runs a mirror)"]
     S["Fastify server<br/>deal service, agent, poller"] --- D[("SQLite<br/>node:sqlite")]
   end
   S -->|"generateContent + JSON schema"| G["Gemini on Vertex AI<br/>3.8 Flash, 4 Argon fallback"]
@@ -120,7 +120,7 @@ The server keeps each deal as one JSON document, changes it only through a per-d
 
 ## Built during the hackathon
 
-All code was written for this hackathon, from Fri Nov 6 to Wed Nov 11, 2026 (IST), after a Day-0 test of the PayPal and Gemini calls. The commit history (`git log --reverse`) shows it:
+All code was written for this hackathon, from Fri Nov 6 to Thu Nov 12, 2026 (IST), after a Day-0 test of the PayPal and Gemini calls. The commit history (`git log --reverse`) shows it:
 
 | Date (IST) | Commit | What |
 |---|---|---|
@@ -143,7 +143,7 @@ All code was written for this hackathon, from Fri Nov 6 to Wed Nov 11, 2026 (IST
 | Tue Nov 10, 21:14 | [83d3a9f](https://github.com/krushnasalunke215-lang/Sauda/commit/83d3a9f) | Fix: keep a slow Flash call running while the fallback model is asked |
 | Wed Nov 11, 15:50 | [4f6d418](https://github.com/krushnasalunke215-lang/Sauda/commit/4f6d418) | Gemini voices for spoken playback, matched to the speaker |
 
-This README and its screenshots followed on Wed Nov 11.
+This README and its screenshots followed on Wed Nov 11, and the move of the hosted demo to AWS on Thu Nov 12.
 
 ## Run locally
 
@@ -163,7 +163,7 @@ npm run e2e              # end-to-end tests (Playwright); real Gemini and PayPal
 
 `npm run build` followed by `npm start` serves the built client from the server on port 8787. Nothing needs seeding: the sample clips and photos ship in `samples/`, and `/demo` creates a fresh deal.
 
-**The production board.** Sauda uses [Bryntum Gantt Community](https://www.npmjs.com/package/@bryntum/gantt-community) 8.0.0 (MIT, public npm registry), installed by `npm run bryntum:install` and not saved in `package.json`. Render runs that command before the build. Without it, a simpler built-in board appears with the same rows and gates, and everything else works the same. No Bryntum account or trial is needed.
+**The production board.** Sauda uses [Bryntum Gantt Community](https://www.npmjs.com/package/@bryntum/gantt-community) 8.0.0 (MIT, public npm registry), installed by `npm run bryntum:install` and not saved in `package.json`. The AWS and Render builds run that command before the build. Without it, a simpler built-in board appears with the same rows and gates, and everything else works the same. No Bryntum account or trial is needed.
 
 **Webhooks locally.** Set `PUBLIC_BASE_URL` to a public https URL (for example an ngrok tunnel) and the server registers its webhook at boot. Without one, polling picks up every payment.
 
@@ -171,7 +171,19 @@ npm run e2e              # end-to-end tests (Playwright); real Gemini and PayPal
 
 In the Render dashboard choose New → Blueprint, pick this repo (Render reads `render.yaml`), enter the five secrets (`PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_MERCHANT_EMAIL`, `PAYPAL_BUYER_EMAIL`, `GEMINI_API_KEY`) and apply. The service builds with `npm ci && npm run bryntum:install && npm run build`, starts with `npm start` and is health-checked at `/healthz`. At boot the server finds or registers its PayPal webhook at `<RENDER_EXTERNAL_URL>/api/paypal/webhook`.
 
-The hosted demo runs on Render's Free instance type, which has no persistent disk. The first visit after about 15 idle minutes can take up to a minute, and deals reset when the instance restarts or spins down, so run a deal from start to finish in one sitting. `render.starter.yaml` is the same service on the Starter plan with a 1 GB disk at `/var/data`; copy it over `render.yaml` and push to keep deals across restarts with the same URL.
+The Render service is the backup mirror of the hosted demo, at https://sauda-95sg.onrender.com, and redeploys on every push to `main`. It runs on Render's Free instance type, which has no persistent disk. The first visit after about 15 idle minutes can take up to a minute, and deals reset when the instance restarts or spins down, so run a deal from start to finish in one sitting. `render.starter.yaml` is the same service on the Starter plan with a 1 GB disk at `/var/data`; copy it over `render.yaml` and push to keep deals across restarts with the same URL.
+
+## Hosting on AWS Lightsail
+
+The hosted demo, https://184-193-2-247.sslip.io, runs on one AWS Lightsail instance (Ubuntu 24.04, 2 GB RAM, us-east-1, static IP 184.193.2.247). [sslip.io](https://sslip.io) resolves that name to the IP, and Caddy serves it over HTTPS with a Let's Encrypt certificate, which the microphone and PayPal webhooks need. The host files are in [deploy/aws](deploy/aws):
+
+- [sauda.service](deploy/aws/sauda.service): the systemd unit. It runs the server as the `sauda` user on port 8787 and starts it again after a crash or a reboot. The SQLite database and the media are in `/var/lib/sauda` on the instance's disk, so deals survive restarts. The five secrets are in `/etc/sauda/sauda.env`, readable only by `sauda`.
+- [Caddyfile](deploy/aws/Caddyfile): HTTPS on port 443, proxied to the server.
+- [redeploy.sh](deploy/aws/redeploy.sh), installed as `sauda-redeploy`: builds a commit in its own folder under `/opt/sauda/releases` while the current version keeps serving, switches `/opt/sauda/current` to it, restarts the service and waits until `/healthz` reports that commit. It also installs the unit and the Caddyfile from that commit.
+
+To deploy a pushed commit, run `sudo sauda-redeploy` on the instance (`ssh ubuntu@184.193.2.247` with the instance's key), or `sudo sauda-redeploy <commit>` to roll back. Logs: `journalctl -u sauda`. At boot the server finds or registers its own PayPal webhook for its URL, next to the Render mirror's, and each verifies its own deliveries.
+
+One-time setup, already done on the instance: Node 24.11.1 in `/opt/node`, Caddy from its apt repository, a 2 GB swap file, BBR congestion control, the `sauda` system user, `/etc/sauda/sauda.env`, then `sudo sauda-redeploy`. The Lightsail firewall allows TCP 22, 80 and 443.
 
 ## Limitations and roadmap
 
@@ -185,7 +197,7 @@ The hosted demo runs on Render's Free instance type, which has no persistent dis
 - **No invoice attachments.** The Invoicing API cannot upload them, so photos stay in the room and the agreement goes in the invoice text fields.
 - **Reminders are slow in the sandbox** (one took about 70 s) and the Agent Toolkit returns no debug ID, so the timeline shows "—" for them.
 - **Tracking needs a PayPal payment.** Payments recorded by hand (as the automated tests do) have no PayPal transaction, so the tracking card says so instead of adding tracking.
-- **Free hosting.** Deals reset when the Render instance restarts, and the first visit after idle is slow.
+- **One small server.** The hosted demo is a single 2 GB instance in us-east-1 with no CDN, so far from the US the first load and the 2 MB production board take a few seconds longer. On the Render mirror, deals reset when the instance restarts, and the first visit after idle is slow.
 
 ## License
 

@@ -7,7 +7,7 @@ import { recordPayment } from './paypal-helpers.js';
 /**
  * README screenshots (docs/images/*.png). Not part of the normal e2e run: it only runs with
  * SCREENSHOTS=1, normally against the hosted app:
- *   $env:SCREENSHOTS='1'; $env:BASE_URL='https://<render-url>'; npx playwright test -c e2e/playwright.config.ts e2e/screenshots.spec.ts
+ *   $env:SCREENSHOTS='1'; $env:BASE_URL='https://184-193-2-247.sslip.io'; npx playwright test -c e2e/playwright.config.ts e2e/screenshots.spec.ts
  * Page screenshots never include the address bar, so the room tokens in the URLs are not captured;
  * the invite menu (which shows the buyer link) stays closed. Payments are recorded cash payments,
  * so no PayPal login screen is involved.
@@ -50,16 +50,11 @@ async function done(page: Page, from: Role, nth: number): Promise<void> {
   await expect(page.locator(`[data-testid="message"][data-from="${from}"]`).nth(nth)).toHaveAttribute('data-status', 'done');
 }
 
-test('README screenshots', async ({ browser, request }) => {
-  test.setTimeout(900_000);
-
-  // Home.
-  const home = await browser.newPage({ viewport: DESKTOP });
-  await home.goto('/');
-  await shot(home, 'home');
-
-  // /demo: both roles side by side, after one English and one Hindi turn.
-  await home.setViewportSize({ width: 1600, height: 900 });
+// /demo: both roles side by side, after one English and one Hindi turn. At 2200 px each half is wide
+// enough (lg) to show its agreement next to the chat. Runs alone with -g "demo split".
+test('README screenshot: demo split', async ({ browser }) => {
+  test.setTimeout(300_000);
+  const home = await browser.newPage({ viewport: { width: 2200, height: 1000 } });
   await home.goto('/demo');
   const makerFrame = home.frameLocator('[data-testid="demo-maker"]');
   const buyerFrame = home.frameLocator('[data-testid="demo-buyer"]');
@@ -74,6 +69,16 @@ test('README screenshots', async ({ browser, request }) => {
   await settled(makerFrame.locator('[data-testid="message"][data-from="maker"]').first());
   await expect(buyerFrame.locator('[data-testid="message"][data-from="maker"]').first()).toHaveAttribute('data-status', 'done');
   await shot(home, 'demo-split');
+  await home.close();
+});
+
+test('README screenshots', async ({ browser, request }) => {
+  test.setTimeout(900_000);
+
+  // Home.
+  const home = await browser.newPage({ viewport: DESKTOP });
+  await home.goto('/');
+  await shot(home, 'home');
   await home.close();
 
   // The main story: maker (Hindi) and buyer (English) in two windows, in judge mode like /demo.
