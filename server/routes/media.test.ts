@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { DealView } from '../../shared/types.js';
@@ -82,12 +82,12 @@ describe('voice turns', () => {
   });
 });
 
-describe('server TTS fallback', () => {
-  it("synthesizes a message's translation once and caches it", async () => {
-    const calls: [string, string][] = [];
-    const speak: Speak = async (text, lang) => {
-      calls.push([text, lang]);
-      return Buffer.from(`RIFF-fake-wav-${lang}`);
+describe('Gemini speech playback', () => {
+  it("synthesizes a message's translation once in its speaker's voice and caches it", async () => {
+    const calls: [string, string, string][] = [];
+    const speak: Speak = async (text, lang, voice) => {
+      calls.push([text, lang, voice]);
+      return Buffer.from(`RIFF-fake-wav-${lang}-${voice}`);
     };
     t = await testApp({ speak });
     const { messageId } = (
@@ -98,12 +98,27 @@ describe('server TTS fallback', () => {
     const [a, b] = await Promise.all([t.app.inject({ method: 'GET', url: url(t.deal.buyer.token) }), t.app.inject({ method: 'GET', url: url(t.deal.buyer.token) })]);
     expect(a.statusCode).toBe(200);
     expect(a.headers['content-type']).toBe('audio/wav');
-    expect(a.body).toBe('RIFF-fake-wav-en');
-    expect(b.body).toBe('RIFF-fake-wav-en');
-    expect((await t.app.inject({ method: 'GET', url: url(t.deal.buyer.token) })).body).toBe('RIFF-fake-wav-en');
-    expect(calls).toEqual([['Hello', 'en']]);
-    expect(existsSync(path.join(t.dataDir, 'media', t.deal.id, `${messageId}.tts.wav`))).toBe(true);
+    expect(a.body).toBe('RIFF-fake-wav-en-Umbriel');
+    expect(b.body).toBe('RIFF-fake-wav-en-Umbriel');
+    expect((await t.app.inject({ method: 'GET', url: url(t.deal.buyer.token) })).body).toBe('RIFF-fake-wav-en-Umbriel');
+    expect(calls).toEqual([['Hello', 'en', 'Umbriel']]);
+    expect(existsSync(path.join(t.dataDir, 'media', t.deal.id, `${messageId}.umbriel.tts.wav`))).toBe(true);
     expect((await t.app.inject({ method: 'GET', url: url('x'.repeat(32)) })).statusCode).toBe(403);
+    // The buyer's messages are read in the female voice.
+    const buyerMsg = (
+      await t.app.inject({ method: 'POST', url: `/api/deals/${t.deal.id}/turns`, headers: authed(t.deal.buyer.token), payload: { text: 'Hi!' } })
+    ).json() as { messageId: string };
+    await t.service.whenIdle();
+    const res = await t.app.inject({ method: 'GET', url: `/api/deals/${t.deal.id}/messages/${buyerMsg.messageId}/tts?t=${encodeURIComponent(t.deal.maker.token)}` });
+    expect(res.body).toBe('RIFF-fake-wav-en-Aoede');
+    expect(calls).toEqual([
+      ['Hello', 'en', 'Umbriel'],
+      ['Hello', 'en', 'Aoede'],
+    ]);
+    // A cache lost in a restart is synthesized again.
+    rmSync(path.join(t.dataDir, 'media', t.deal.id, `${messageId}.umbriel.tts.wav`));
+    expect((await t.app.inject({ method: 'GET', url: url(t.deal.buyer.token) })).statusCode).toBe(200);
+    expect(calls).toHaveLength(3);
     // The deal_created event has no translation.
     expect((await t.app.inject({ method: 'GET', url: `/api/deals/${t.deal.id}/messages/m1/tts?t=${encodeURIComponent(t.deal.buyer.token)}` })).statusCode).toBe(409);
   });

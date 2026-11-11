@@ -18,7 +18,7 @@ import { AiBudgetError } from '../ai/budget.js';
 import { AiUnavailableError } from '../ai/gemini.js';
 import type { Interpreter, TurnInput, TurnResult } from '../ai/interpret.js';
 import { extFor, normalizeAudioMime, normalizeImageMime, type AudioMime, type ImageMime } from '../ai/media.js';
-import type { Speak } from '../ai/tts.js';
+import { TTS_VOICES, type Speak } from '../ai/tts.js';
 import type { ImageInput, Vision } from '../ai/vision.js';
 import { canonicalHash, isLocked, missingRequired, patchDeal, validate } from '../domain/agreement.js';
 import { checkTextLimits } from '../domain/agreement-text.js';
@@ -52,7 +52,7 @@ export interface ServiceDeps {
   vision?: Vision | null;
   /** Uploads live in <mediaDir>/<dealId>/<messageId>.<ext>. */
   mediaDir: string;
-  /** Server text-to-speech fallback; null when not configured. */
+  /** Gemini text-to-speech for playback; null when not configured (the client then uses the browser voice). */
   speak?: Speak | null;
   now?: () => Date;
   log?: Logger;
@@ -221,15 +221,17 @@ export class DealService {
   }
 
   /**
-   * The message's translation as speech (WAV), for listeners whose browser has no voice for the
-   * language. Synthesized once and cached next to the media as <messageId>.tts.wav.
+   * The message's translation as speech (WAV) in the Gemini voice of its speaker (TTS_VOICES).
+   * Synthesized once and cached next to the media as <messageId>.<voice>.tts.wav. The cache only
+   * saves calls: when a restart wipes it (Render Free), the next request synthesizes it again.
    */
   async translationSpeech(deal: Deal, messageId: string): Promise<Buffer> {
     const speak = this.deps.speak;
     if (!speak) throw new ServiceError(503, 'tts_not_configured');
     const m = findMessage(deal, messageId);
-    if (m.status !== 'done' || !m.translation?.text) throw new ServiceError(409, 'no_translation');
-    const file = path.join(this.deps.mediaDir, deal.id, `${m.id}.tts.wav`);
+    if (m.status !== 'done' || m.from === 'system' || !m.translation?.text) throw new ServiceError(409, 'no_translation');
+    const voice = TTS_VOICES[m.from];
+    const file = path.join(this.deps.mediaDir, deal.id, `${m.id}.${voice.toLowerCase()}.tts.wav`);
     const cached = await readFile(file).catch(() => null);
     if (cached) return cached;
     const key = `${deal.id}/${m.id}`;
@@ -239,7 +241,7 @@ export class DealService {
       job = (async () => {
         let wav: Buffer;
         try {
-          wav = await speak(text, lang);
+          wav = await speak(text, lang, voice);
         } catch (e) {
           if (e instanceof AiBudgetError) throw new ServiceError(503, 'ai_budget');
           this.deps.log?.warn({ dealId: deal.id, messageId, err: e instanceof Error ? e.message.slice(0, 200) : String(e) }, 'tts failed');

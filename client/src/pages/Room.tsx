@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { depositPaid, fullyPaid, otherRole, type DealView, type Lang, type Message, type PhotoKind, type SampleInfo } from '../../../shared/types.js';
 import { ApiError, api, upload } from '../api.js';
-import { playUrl, speak } from '../audio/speech.js';
+import { sayAloud } from '../audio/speech.js';
 import { AgreementPanel } from '../components/AgreementPanel.js';
 import { ChatPanel } from '../components/ChatPanel.js';
 import { Composer } from '../components/Composer.js';
@@ -217,16 +217,14 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
 
   const mediaUrl = useCallback((file: string) => `/api/deals/${dealId}/media/${encodeURIComponent(file)}?t=${encodeURIComponent(token)}`, [dealId, token]);
 
-  /** Speaks a translation with a browser voice, or the server's TTS when the device has none. */
+  /** Reads a translation aloud in its speaker's Gemini voice, or a browser voice when that fails or is slow. */
   const say = useCallback(
     async (m: Message) => {
       const tr = m.translation;
       if (!tr?.text) return;
       setNotice(null);
-      try {
-        if (await speak(tr.text, tr.lang)) return;
-        await playUrl(`/api/deals/${dealId}/messages/${m.id}/tts?t=${encodeURIComponent(token)}`);
-      } catch {
+      const url = `/api/deals/${dealId}/messages/${m.id}/tts?t=${encodeURIComponent(token)}`;
+      if (!(await sayAloud(url, tr.text, tr.lang).catch(() => false))) {
         setNotice(t(lang, 'speech.noVoice', { lang: t(lang, `langName.${tr.lang}`) }));
       }
     },

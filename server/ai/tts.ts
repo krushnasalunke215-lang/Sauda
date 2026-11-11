@@ -1,14 +1,22 @@
 import type { GoogleGenAI } from '@google/genai';
-import type { Lang } from '../../shared/types.js';
+import type { Lang, Role } from '../../shared/types.js';
 import type { Reserve } from './budget.js';
 
-/** Gemini text-to-speech model, used only when the listener's browser has no voice for the language. */
+/** Gemini text-to-speech model that reads translations aloud; the browser's voice is the client's fallback. */
 export const TTS_MODEL = 'gemini-3.8-flash-tts';
 export const TTS_TIMEOUT_MS = 20_000;
 /** Longer texts are cut so one message cannot run up a long synthesis. */
 export const MAX_TTS_CHARS = 600;
 
-const LANG_NAMES: Record<Lang, string> = { hi: 'Hindi', en: 'English', es: 'Spanish' };
+/** Each message is read in a voice that matches its speaker (the user's choice): female for the buyer, male for the maker. */
+export const TTS_VOICES: Readonly<Record<Role, string>> = { buyer: 'Aoede', maker: 'Umbriel' };
+
+/** The 3.8 TTS models read the text verbatim, so the delivery style goes in speechMetadata, not in the text. */
+const STYLES: Record<Lang, string> = {
+  hi: 'natural, warm and conversational, like a person speaking everyday Hindi in India',
+  en: 'natural, warm and conversational, at a relaxed everyday pace',
+  es: 'natural, warm and conversational, like a person speaking everyday Spanish',
+};
 
 /** The sample rate in a MIME type such as `audio/L16;codec=pcm;rate=24000` (24 kHz when absent). */
 export function pcmRate(mimeType: string): number {
@@ -46,15 +54,15 @@ export interface TtsResult {
   sampleRate: number;
 }
 
-/** Speaks `text` in `lang` and returns it as a WAV file. */
-export async function synthesize(ai: GoogleGenAI, text: string, lang: Lang): Promise<TtsResult> {
+/** Speaks `text` in `lang` with a prebuilt Gemini voice and returns it as a WAV file. */
+export async function synthesize(ai: GoogleGenAI, text: string, lang: Lang, voice: string): Promise<TtsResult> {
   const clipped = Array.from(text).slice(0, MAX_TTS_CHARS).join('');
   const resp = await ai.models.generateContent({
     model: TTS_MODEL,
-    contents: [{ role: 'user', parts: [{ text: `Read this ${LANG_NAMES[lang]} text aloud in a warm, clear voice:\n${clipped}` }] }],
+    contents: [{ role: 'user', parts: [{ text: clipped, speechMetadata: { style: STYLES[lang] } }] }],
     config: {
       responseModalities: ['AUDIO'],
-      speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+      speechConfig: { voiceConfig: { voice } },
       abortSignal: AbortSignal.timeout(TTS_TIMEOUT_MS),
       httpOptions: { timeout: TTS_TIMEOUT_MS },
     },
@@ -70,13 +78,13 @@ export async function synthesize(ai: GoogleGenAI, text: string, lang: Lang): Pro
   return { wav: pcmToWav(audio, rate), model: TTS_MODEL, sourceMimeType: mimeType, pcmBytes: audio.length, sampleRate: rate };
 }
 
-/** Synthesizes a message's translation. Injected so tests can fake it. */
-export type Speak = (text: string, lang: Lang) => Promise<Buffer>;
+/** Synthesizes a message's translation in the given voice. Injected so tests can fake it. */
+export type Speak = (text: string, lang: Lang, voice: string) => Promise<Buffer>;
 
 /** Each synthesis reserves one call from the daily AI budget first (AiBudgetError when used up). */
 export function createSpeak(ai: GoogleGenAI, budget?: Reserve | null): Speak {
-  return async (text, lang) => {
+  return async (text, lang, voice) => {
     budget?.reserve();
-    return (await synthesize(ai, text, lang)).wav;
+    return (await synthesize(ai, text, lang, voice)).wav;
   };
 }
