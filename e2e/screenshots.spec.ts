@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { DealView, Role } from '../shared/types.js';
@@ -5,25 +6,26 @@ import { createDeal, openRoles, sendText } from './helpers.js';
 import { recordPayment } from './paypal-helpers.js';
 
 /**
- * README screenshots (docs/images/*.png). Not part of the normal e2e run: it only runs with
- * SCREENSHOTS=1, normally against the hosted app:
+ * README screenshots (docs/images/*.png) plus the extra screens used to review UI changes. Not part
+ * of the normal e2e run: it only runs with SCREENSHOTS=1, normally against the hosted app:
  *   $env:SCREENSHOTS='1'; $env:BASE_URL='https://184-193-2-247.sslip.io'; npx playwright test -c e2e/playwright.config.ts e2e/screenshots.spec.ts
+ * SHOTS_DIR writes the PNGs to another folder (for before/after sets) instead of docs/images.
  * Page screenshots never include the address bar, so the room tokens in the URLs are not captured;
  * the invite menu (which shows the buyer link) stays closed. Payments are recorded cash payments,
  * so no PayPal login screen is involved.
  */
 
-const OUT = fileURLToPath(new URL('../docs/images/', import.meta.url));
+const OUT = process.env.SHOTS_DIR ? path.resolve(process.env.SHOTS_DIR) + path.sep : fileURLToPath(new URL('../docs/images/', import.meta.url));
 const DESKTOP = { width: 1440, height: 900 };
 const BUYER_TEXT = 'Hi! I would like a light green chikankari kurta, size medium, 44 inches long, by December 10.';
 const SHIPPING_TEXT = 'Does the price include shipping to Ohio?';
 
 test.skip(!process.env.SCREENSHOTS, 'README screenshots run on demand with SCREENSHOTS=1');
 
-async function shot(page: Page, name: string): Promise<void> {
+async function shot(page: Page, name: string, fullPage = false): Promise<void> {
   // Let fonts, transitions and the Bryntum layout settle.
   await page.waitForTimeout(800);
-  await page.screenshot({ path: `${OUT}${name}.png` });
+  await page.screenshot({ path: `${OUT}${name}.png`, fullPage });
 }
 
 /** Waits until a message is interpreted, pressing Retry if the AI failed. */
@@ -79,6 +81,7 @@ test('README screenshots', async ({ browser, request }) => {
   const home = await browser.newPage({ viewport: DESKTOP });
   await home.goto('/');
   await shot(home, 'home');
+  await shot(home, 'home-full', true);
   await home.close();
 
   // The main story: maker (Hindi) and buyer (English) in two windows, in judge mode like /demo.
@@ -96,6 +99,8 @@ test('README screenshots', async ({ browser, request }) => {
     await settled(buyer.locator('[data-testid="message"][data-from="buyer"]').nth(1));
   }
   await expect(questions.first()).toBeVisible();
+  // The compact agreement with the open question, as the buyer first sees it.
+  await shot(buyer, 'buyer-agreement');
 
   // The full agreement list with its citations, and the open question.
   await buyer.getByTestId('agreement-expand').click();
@@ -118,11 +123,18 @@ test('README screenshots', async ({ browser, request }) => {
   // The maker approves the invoice; a recorded 36.00 deposit shows the payment moment in Hindi.
   await maker.getByTestId('proposal-approve').click();
   for (const page of [maker, buyer]) await expect(page.getByTestId('payment-panel')).toHaveAttribute('data-status', 'UNPAID');
+  // The buyer's payment card with the deposit due.
+  await buyer.getByTestId('payment-panel').scrollIntoViewIfNeeded();
+  await shot(buyer, 'buyer-invoice');
   const view = (await (await request.get(`/api/deals/${deal.id}`, { headers: { 'x-sauda-token': deal.maker.token } })).json()) as DealView;
-  await recordPayment(view.invoice!.id, 3600);
+  const invoiceId = view.invoice!.id;
+  await recordPayment(invoiceId, 3600);
   await expect(maker.getByTestId('payment-moment')).toHaveAttribute('data-kind', 'deposit', { timeout: 45_000 });
   await shot(maker, 'payment-deposit');
   await expect(buyer.getByTestId('deposit-chip')).toHaveAttribute('data-state', 'received', { timeout: 45_000 });
+  // The maker's room once the deposit moment has faded.
+  await expect(maker.getByTestId('payment-moment')).toHaveCount(0);
+  await shot(maker, 'maker-deposit');
 
   // The money timeline with the PayPal debug IDs, once the buyer's payment moment has faded.
   await expect(buyer.getByTestId('payment-moment')).toHaveCount(0);
@@ -140,20 +152,31 @@ test('README screenshots', async ({ browser, request }) => {
   await shot(buyer, 'progress-check');
   await buyer.getByTestId('photo-approve').click();
   await expect(buyer.getByTestId('pay-balance')).toBeVisible();
+  await buyer.getByTestId('payment-panel').scrollIntoViewIfNeeded();
+  await shot(buyer, 'buyer-balance-due');
 
   // The maker's production board: the deposit gate done, work under way, the balance gate waiting.
   await maker.getByTestId('tab-board').click();
   await expect(maker.locator(`[data-testid="board-row-deposit_paid"][data-order="${deal.id}"]`)).toHaveAttribute('data-state', 'done');
   await shot(maker, 'board');
 
-  await close();
-
-  // The buyer on a phone (390 x 844), on the Pay tab with the balance button.
+  // The buyer on a phone (390 x 844) while the balance is due: the Pay tab, then the Chat tab.
   const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
   const mobile = await phone.newPage();
   await mobile.goto(deal.buyer.url);
   await mobile.getByTestId('mobile-tab-pay').click();
   await expect(mobile.getByTestId('pay-balance')).toBeVisible();
   await shot(mobile, 'mobile-buyer');
+  await mobile.getByTestId('mobile-tab-chat').click();
+  await expect(mobile.getByTestId('mobile-panel-chat')).toBeVisible();
+  await shot(mobile, 'mobile-buyer-chat');
+
+  // A recorded 84.00 balance: the buyer's payment card paid in full.
+  await recordPayment(invoiceId, 8400);
+  await expect(buyer.getByTestId('payment-panel')).toHaveAttribute('data-status', /^(PAID|MARKED_AS_PAID)$/, { timeout: 90_000 });
+  await buyer.getByTestId('payment-panel').scrollIntoViewIfNeeded();
+  await shot(buyer, 'buyer-paid');
+
   await phone.close();
+  await close();
 });
