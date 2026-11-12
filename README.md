@@ -1,6 +1,6 @@
 # Sauda
 
-**A live deal room where a Hindi-speaking maker and an English-speaking buyer agree a custom order in their own languages, and PayPal Invoicing runs the deposit, the balance and the shipment.**
+**A live deal room where a Hindi-speaking maker and an English-speaking buyer agree a custom order in their own languages, and PayPal Invoicing runs the deposit, the balance and the shipment.** Any pair of seven languages works: Hindi, English, Spanish, French, Brazilian Portuguese, German and Japanese.
 
 - **Hosted demo:** https://184-193-2-247.sslip.io (PayPal sandbox only, no real money), on AWS. Backup mirror on Render: https://sauda-95sg.onrender.com
 - **Video:** VIDEO_URL
@@ -14,7 +14,7 @@
 2. On the buyer side, type in English or tap one of the sample messages above the input box.
 3. On the maker side, open the sample clips menu (the headphones button, **सैंपल क्लिप**; the maker's screen is in Hindi) and press the first clip, the full order spoken by a real Hindi speaker. Gemini transcribes and translates it, and the agreement fills in on both sides. The AI then asks whether the price includes shipping; press the shipping clip to answer it.
 4. Press **Confirm this agreement** on the buyer side and **यह समझौता पक्का करें** on the maker side, then **मंज़ूर करें** (Approve) on the maker's invoice card. A real sandbox invoice is created and sent.
-5. On the buyer side, press **Pay deposit with PayPal** and pay with the sandbox buyer login from the Devpost testing instructions. Keep the pre-filled 36.00. Within about 10 seconds the maker sees **एडवांस मिल गया** (Deposit received) and the buyer sees "Deposit paid". If the PayPal tab keeps loading after "Thank you for using PayPal", close it: the room checks PayPal itself.
+5. On the buyer side, follow the amber **Your turn** line: press **Pay $36.00 deposit** and pay with the sandbox buyer login from the Devpost testing instructions. Keep the pre-filled 36.00. Within about 10 seconds the maker sees **एडवांस मिल गया** (Deposit received) and the buyer sees "Deposit paid". If the PayPal tab keeps loading after "Thank you for using PayPal", close it: the room checks PayPal itself.
 
 ## The problem and who it is for
 
@@ -24,11 +24,11 @@ Makers who take custom orders, such as tailors, embroiderers and jewellers, ofte
 - India alone counts 64.66 lakh (about 6.5 million) handicraft artisans ([PIB background note](https://static.pib.gov.in/WriteReadData/specificdocs/documents/2025/dec/doc2025129724401.pdf)).
 - PayPal in India is a cross-border service for selling abroad, not a domestic wallet ([TechCrunch](https://techcrunch.com/2021/02/04/paypal-is-shutting-down-domestic-payments-business-in-india/)).
 
-The demo pair is Ravi, a chikankari tailor in Lucknow who speaks Hindi, and Emily, a buyer in Ohio who speaks English. Spanish works too.
+The demo pair is Ravi, a chikankari tailor in Lucknow who speaks Hindi, and Emily, a buyer in Ohio who speaks English. The same room works between any two of Hindi, English, Spanish, French, Brazilian Portuguese, German and Japanese: the whole interface, the invoice text, dates and units follow each side's language. A Japanese maker and a French buyer run a full deal in the end-to-end tests.
 
 ## What it does
 
-- **Two private links, one room.** Each side opens its own link and talks in its own language, by push-to-talk, a voice note, a sample clip or typing. Every turn is shown to the other side translated, with the original underneath, and can be read aloud in a voice that matches the speaker.
+- **Two private links, one room.** Each side opens its own link and talks in its own language (Hindi, English, Spanish, French, Brazilian Portuguese, German or Japanese), by push-to-talk, a voice note, a sample clip or typing. Every turn is shown to the other side translated, with the original underneath, and can be read aloud in a voice that matches the speaker. A "Your turn" line names each side's next step, and colour marks who is who (maker green, buyer indigo) and what needs doing (amber).
 - **An agreement that writes itself, with sources.** Item, size, length, colour, price, deposit, delivery date and shipping fill in as the parties talk. Each term links to the message it came from. When something is unclear, such as whether the price includes shipping, the AI asks the right person.
 
   ![The bilingual agreement with citations and an open shipping question](docs/images/agreement-citations.png)
@@ -80,9 +80,9 @@ All model calls go to Gemini on Vertex AI (express mode) through the Google Gen 
 | Task | Model | Guardrail in code |
 |---|---|---|
 | Interpret a turn (voice or text): transcript, language, translation, agreement changes with source, clarifying questions, intents | `gemini-3.8-flash` at thinking level LOW. If it fails or has not answered after 8 s, `gemini-4-argon` is asked too while Flash keeps running; the first valid answer wins, within 38 s in total | One call with `responseJsonSchema`, then Ajv validation; an invalid answer counts as a failure. Money is integer cents; dates and units are parsed in code. [server/ai/gemini.ts](server/ai/gemini.ts), [server/ai/interpret.ts](server/ai/interpret.ts), [server/ai/schemas.ts](server/ai/schemas.ts) |
-| Describe the buyer's reference photo to the maker; check the maker's progress photo against the agreed terms | Same fast model and fallback | Advisory only: the buyer approves or rejects the photo, and the "Pay balance" button appears only after the buyer approves. [server/ai/vision.ts](server/ai/vision.ts) |
+| Describe the buyer's reference photo to the maker; check the maker's progress photo against the agreed terms | Same fast model and fallback | Advisory only: the buyer approves or rejects the photo, and the "Pay $84.00 balance" button appears only after the buyer approves. [server/ai/vision.ts](server/ai/vision.ts) |
 | Tracking and reminder intents ("DHL, number 4567891234") | Same call as the turn | An intent only becomes an approval card. The maker approves it, and code checks the carrier, the number and the invoice state first. [server/agent/proposals.ts](server/agent/proposals.ts), [server/agent/approvals.ts](server/agent/approvals.ts) |
-| Read a message aloud in a voice that matches its speaker (Aoede for the buyer, Umbriel for the maker) | `gemini-3.8-flash-tts` | The text is read as written, cut at 600 characters, with a 20 s timeout; each clip is cached per message. If the Gemini voice fails or has not started within 10 s, the browser's own voice reads the text. [server/ai/tts.ts](server/ai/tts.ts), [client/src/audio/speech.ts](client/src/audio/speech.ts) |
+| Read a message aloud in a voice that matches its speaker (Aoede for the buyer, Umbriel for the maker), in all seven languages | `gemini-3.8-flash-tts` | The text is read as written, cut at 600 characters, with a 20 s timeout; each clip is cached per message. If the Gemini voice fails or has not started within 10 s, the browser's own voice reads the text. [server/ai/tts.ts](server/ai/tts.ts), [client/src/audio/speech.ts](client/src/audio/speech.ts) |
 
 Every model attempt, including fallbacks and speech, first reserves a call from a daily budget (`AI_DAILY_CALL_LIMIT`, default 500) in [server/ai/budget.ts](server/ai/budget.ts).
 
@@ -112,7 +112,7 @@ The server keeps each deal as one JSON document, changes it only through a per-d
 - **Two-sided confirmation of the same terms.** A confirmation stores the SHA-256 hash of the canonical agreement. If the terms change afterwards, the hash no longer matches and both sides must confirm again. The hash is printed in the invoice note, and its first 16 characters in the invoice reference.
 - **No invoice before both confirm.** The agent can only propose the invoice. Approving it re-checks that both sides confirmed the current hash, that required terms are present and valid, and that the texts fit PayPal's limits ([server/agent/proposals.ts](server/agent/proposals.ts)).
 - **Deterministic money.** Prices, deposits and balances are integer cents and are formatted only at the edge ([server/domain/money.ts](server/domain/money.ts)).
-- **PayPal's text limits in UTF-8 bytes.** Hindi takes about three bytes per character, so the note, terms, item and reference are checked in bytes before anything is sent ([server/domain/agreement-text.ts](server/domain/agreement-text.ts)).
+- **PayPal's text limits in UTF-8 bytes.** Hindi (Devanagari) and Japanese take about three bytes per character, so the note, terms, item and reference are checked in bytes before anything is sent ([server/domain/agreement-text.ts](server/domain/agreement-text.ts)). A unit test builds a long agreement for all 42 ordered language pairs and checks that each fits.
 - **Idempotent writes.** Every PayPal write has a `PayPal-Request-Id`.
 - **Verified, deduplicated webhooks.** Signatures are verified with PayPal, each event id counts once, and the invoice is read again instead of trusting the event body. Polling covers a late or missing webhook.
 - **Limits for a public demo.** Per-IP rate limits on deal creation, turns, photos and approvals ([server/app.ts](server/app.ts)), per-deal caps of 200 messages and 20 photos ([server/deals/service.ts](server/deals/service.ts)), and the daily AI call budget ([server/ai/budget.ts](server/ai/budget.ts)).
@@ -143,7 +143,7 @@ All code was written for this hackathon, from Fri Nov 6 to Thu Nov 12, 2026 (IST
 | Tue Nov 10, 21:14 | [83d3a9f](https://github.com/krushnasalunke215-lang/Sauda/commit/83d3a9f) | Fix: keep a slow Flash call running while the fallback model is asked |
 | Wed Nov 11, 15:50 | [4f6d418](https://github.com/krushnasalunke215-lang/Sauda/commit/4f6d418) | Gemini voices for spoken playback, matched to the speaker |
 
-This README and its screenshots followed on Wed Nov 11, and the move of the hosted demo to AWS on Thu Nov 12.
+This README and its screenshots followed on Wed Nov 11, and the move of the hosted demo to AWS and the language and colour refresh (French, Portuguese, German and Japanese, the "Your turn" line, colour-coded roles and states) on Thu Nov 12.
 
 ## Run locally
 
@@ -192,6 +192,8 @@ One-time setup, already done on the instance: Node 24.11.1 in `/opt/node`, Caddy
 - **No disputes or refunds** yet. The confirmed, hashed agreement on the invoice is a natural piece of dispute evidence; using it is on the roadmap.
 - **USD only, no INR settlement.** The sandbox merchant is a US business. Real Indian makers would rely on PayPal India's cross-border receiving, which was not tested here.
 - **Gemini capacity.** When Vertex AI is busy, Flash can take longer than 30 s and the fallback can return 429 (quota). A turn with no valid answer after 38 s shows a Retry button.
+- **Machine-drafted translations.** The UI text beyond Hindi, English and Spanish was drafted with Gemini and checked by back-translation, a model judge and a spot check, not by native speakers.
+- **Hindi-only sample clips.** The recorded sample clips are in Hindi. In the other languages, speak or type.
 - **Push-to-talk, not streaming.** Each turn is one clip and one model call, about 5 to 8 s. Live speech-to-speech translation (Gemini Live) is a possible upgrade; it was not tested with Hindi.
 - **Sandbox checkout can hang** on "Thank you for using PayPal". The room does not depend on the redirect: it polls the invoice and shows the payment anyway.
 - **No invoice attachments.** The Invoicing API cannot upload them, so photos stay in the room and the agreement goes in the invoice text fields.

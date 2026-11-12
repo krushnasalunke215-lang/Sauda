@@ -8,50 +8,81 @@ The code side of the rules is in `client/src/ui.ts` (class tokens), `client/src/
 
 1. **One next step per card.** A card has at most one primary (filled) button. Everything else is a secondary, ghost or icon button.
 2. **Show the current state; fold the rest.** Finished things shrink: the agreement is three compact lines with the full list behind "Show all details", a locked agreement also folds its questions and confirm footer behind that toggle, done proposals become single lines, and answered questions fold into a "Closed questions (n)" toggle. Empty panels render nothing (no "No open questions" boxes), except the places listed under "Loading and empty states", which get one friendly line.
-3. **Viewer's language first.** Each bubble shows the viewer's language in the main text. The other language sits underneath in smaller grey text with a small label. All visible text goes through `t()` with keys in en, hi and es. Never hard-code English in a component.
+3. **Viewer's language first.** Each bubble shows the viewer's own language on top as the main text, darker and heavier than the rest. The other language sits underneath in smaller, lighter text with its language tag. All visible text goes through `t()` with keys in every language on the final list (see "Languages"). Never hard-code English in a component.
 4. **Technical labels only in judge mode.** The normal maker and buyer views hide model badges, message numbers, citation numbers, hashes and IDs. Judge mode shows them in small `text-stone-400` or mono text (see "Technical details and judge mode" below). Keep every existing `data-testid`.
-5. **Colour carries meaning.** Colour marks state only (done, waiting, needs attention, error), not decoration.
+5. **Colour says who and what state.** Two role colours tell the sides apart: the maker is emerald, the buyer indigo (bubbles, name chips, the "with {name}" link, the `/demo` captions). State colours mark what needs doing: amber = your action, emerald = done or money in, PayPal blue = pay, sky = ready, red = error or deadline. No other use of colour.
+6. **Highlight the next step, cut the rest.** The "Your turn" line names the one next action; chips and tiles replace sentences where a word or an amount says it.
 
 ## Layout
 
 - Page background `bg-stone-50` (set on `<body>`). Content sits in white cards: `ui.card` (`rounded-2xl bg-white ring-1 ring-stone-200/80`) with `p-5`. No borders inside cards except `divide-stone-100` or `border-stone-100` separators.
 - Room: a sticky header with the app name, the viewer's name and role, "with {other}" (plus " · SAUDA-id" in judge mode), the deal progress bar (`DealProgress`), the sound icon button and (maker only) the "Invite buyer" popover. From `lg` up it is one 56 px row (`h-14`) with the progress bar between the names and the buttons; below `lg` the progress bar is a second 40 px row under the names. The buyer's phone tabs sit in the same sticky block, under the header. Below it, from `lg` up, a two-column grid fills the viewport (`minmax(0,1fr) 400px`). The chat card is on the left. The side panel scrolls on its own on the right.
 - Side panel order: Deal / Money timeline (/ Production for the maker) tabs, then Payment (once the invoice exists), Agent proposals (when there are any), then Agreement. The questions and the confirm footer live inside the Agreement card.
-- Home (`/`): a centred `max-w-4xl` page. The hero (`max-w-2xl`): the title, a one-line pitch (`home-pitch`, `text-lg`/`sm:text-xl` `stone-800`), the problem line under it in `text-sm stone-500`, the one primary button "Try the 2-minute demo" (opens `/demo`, `px-6 py-3 text-base`, play icon) and a `ui.meta` note. Then three illustrated step cards in a `sm:grid-cols-3` grid (Talk in your language, Agree together, Get paid with PayPal): each a `ui.card p-5` with a picture from `components/Illustrations.tsx` on a `bg-stone-50` tile, a small emerald step number, a `ui.title` and a `text-sm stone-600` line. Below, in a `max-w-xl` column: the "Try it in 2 minutes" list, the "Start a real deal" form card, the result links card and the footer.
+- Side panel top: the "Your turn" line (`YourTurn`) sits above the tab list. On the buyer's phone it sits at the top of the main area instead, and is hidden while the pay bar shows.
+- Home (`/`): a centred `max-w-4xl` page. The hero band (`rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-indigo-50 ring-1 ring-emerald-100`, the two role colours): the title, a one-line pitch (`home-pitch`, `text-lg`/`sm:text-xl` `stone-800`), the one primary button "Try the 2-minute demo" (opens `/demo`, `px-6 py-3 text-base`, play icon) and a row of language chips (`home-langs`, one `home-lang` per `LANGS` entry, each in its own script from `LANG_ENDONYMS`, with `lang` set). No problem paragraph and no note under the button. Then three illustrated step cards in a `sm:grid-cols-3` grid (Talk in your language, Agree together, Get paid with PayPal): each a `ui.card p-5` with a picture from `components/Illustrations.tsx` on a `bg-stone-50` tile, a small emerald step number, a `ui.title` and one short `text-sm stone-600` line. Below, in a `max-w-xl` column: the 3-step "Try it in 2 minutes" list, the "Start a real deal" form card, the result links card and the footer.
+- `/demo` (`pages/Demo.tsx`): a slim header with the app name, a "Judge mode" pill (`demo-judge`, `ui.pill ui.tone.quiet`, its title is the longer description) and "Start over" (`ui.btnSecondary`). Below, from `lg` up, the maker and buyer rooms side by side, each under a caption pill in its role colour (`demo-caption-maker` "Maker · हिंदी", `demo-caption-buyer` "Buyer · English", `ui.pill ui.role[role].chip`) and in a `rounded-2xl ring-1 ring-stone-200` frame. Each iframe renders at least 1100 px wide (`ROOM_WIDTH` in `ScaledFrame`) and is scaled down to fit its half, like a browser zoom, but never below 0.62. So on a 1600 px screen each room keeps its desktop layout: the agreement beside the chat and the microphone in view. Below `lg` the halves stack, unscaled.
 - Spacing: `gap-4` between cards, `mt-3` or `mt-4` between blocks inside a card, `space-y-4` between chat messages. Max content width `max-w-7xl`.
 - Below `lg`, everything stacks in one column. The FEAT-004 mobile buyer layout (tabs under 768 px, sticky composer) keeps these cards and tokens.
 
 ## Type
 
-- Font: Noto Sans plus Noto Sans Devanagari (loaded in `client/index.html`). Never make Devanagari smaller than 13 px.
+- Font: Noto Sans plus Noto Sans Devanagari and Noto Sans JP (`wght@400..700`, loaded in `client/index.html`). Latin text (en, es, fr, pt, de) uses Noto Sans. Never make Devanagari or Japanese smaller than 13 px.
+- **Japanese.** `styles.css` puts Noto Sans JP in the font stack by `:lang(ja)` (in `@layer base`), so any element with `lang="ja"` (a chat text, a home chip) gets Japanese glyph forms, also inside an English page. Kanji share code points with Chinese (Han unification), so the `lang` attribute is what picks the Japanese forms; set it on every element that shows a message's text. On a Japanese page (`<html lang="ja">`) the `--font-sans` token itself changes, so the Bryntum board follows, and `text-[11px]` and `text-xs` grow to 13 px, as do the board's `.sauda-state` and `.sauda-waiting` chips. Chinese and Korean are not on the list, so there are no SC/KR fonts and no Korean `keep-all` rule; adding them means a Noto Sans SC/KR link, a `:lang()` stack and the same 13 px rule.
 - **Hindi readability.** Devanagari gets one size step and more line height than Latin text at the same class. `styles.css` does it centrally, so components keep the normal classes: on a Hindi page (`<html lang="hi">`, set by the room) `text-[11px]` becomes 13 px, `text-xs` 13 px, `text-[13px]` 14 px and `text-sm` 15 px, with line heights of 1.5 to 1.7 unless a `leading-*` class is set. Chat text carries its own `lang` (from the message's original or translation language) and the `msg-main` / `msg-sub` classes, so Hindi in an English view also grows (main 16 px / 1.8, secondary 14 px / 1.75). Any new element that shows a message's text sets `lang` the same way.
 - Page title `text-4xl font-bold tracking-tight` (home only). Card title `ui.title` (`text-sm font-semibold text-stone-900`). Meta text `ui.meta` (`text-xs text-stone-500`). Form label `ui.label`.
-- Chat main text `text-[15px] leading-relaxed text-stone-900`. Chat secondary text (the translation or the original under it) `text-[13px] text-stone-600`, with an `text-[11px] text-stone-500` label above it. Do not make translation text lighter than `stone-600`.
-- Money: `text-xl font-semibold tracking-tight tabular-nums`. Use the `$x.xx` format the panels already use.
-- Use sentence case. Do not use all-caps labels.
+- Chat main text (the viewer's own language, on top on both sides) `text-[15px] font-medium leading-relaxed text-stone-950`. Chat secondary text (the other language under it, after a `border-black/5` rule) `text-[13px] text-stone-500`, led on the same line by its language tag: the uppercase code from `langCode()` (HI, EN, JA, FR …) in `text-[11px] font-semibold text-stone-400` (`message-sub-lang`), whose `title` says "Translated for {name}" or "Original". Both languages stay visible.
+- Money: `text-xl font-semibold tracking-tight tabular-nums` (the payment tiles: `text-xl`, `sm:text-2xl`). Use the `$x.xx` format the panels already use; prices stay USD in every language.
+- Use sentence case. The bubble language tags are the only all-caps text.
 
 ## Colour
 
 | Meaning | Classes |
 |---|---|
-| Text | `stone-900` main, `stone-600`/`stone-500` secondary, `stone-400` quiet |
-| Primary action, done, money received | `emerald-700` buttons, `emerald-600` dots and bars, `emerald-50` soft background |
-| Waiting for you, warning | `amber-50` background with `amber-800`/`amber-900` text |
-| Error | `red-50` background with `red-700`/`red-800` text |
-| PayPal pay buttons only | `bg-paypal` / `hover:bg-paypal-dark` (`#0070ba` / `#005ea6`, defined in `styles.css`) |
-| Running on PayPal | `sky-50` / `sky-800` |
+| Text | `stone-950`/`stone-900` main, `stone-600`/`stone-500` secondary, `stone-400` quiet |
+| Maker (role) | `ui.role.maker`: bubble `bg-emerald-50`, chip `bg-emerald-100 text-emerald-800`, text `text-emerald-700` |
+| Buyer (role) | `ui.role.buyer`: bubble `bg-indigo-50`, chip `bg-indigo-100 text-indigo-800`, text `text-indigo-700` |
+| Your action | `ui.tone.action` (`bg-amber-100 text-amber-900`); callouts `amber-50`/`amber-100` with an amber ring; dots `amber-500` |
+| Done, money in, primary buttons | `ui.tone.done` (`bg-emerald-100 text-emerald-800`); `emerald-700` buttons, `emerald-600` dots and bars, `emerald-50` tiles |
+| Pay | `ui.tone.pay` (`bg-paypal/10 text-paypal-dark`); pay buttons `ui.btnPayPal` (`bg-paypal` / `hover:bg-paypal-dark`, `#0070ba` / `#005ea6`, defined in `styles.css`) |
+| Ready (board) | `ui.tone.ready` (`bg-sky-100 text-sky-800`); bars `sky-200`, ring `sky-600` |
+| Error or deadline | `ui.tone.error` (`bg-red-100 text-red-800`); `red-50` boxes with `red-700`/`red-800` text; the board deadline `red-500` |
+| Quiet, waiting for the other side, locked | `ui.tone.quiet` (`bg-stone-100 text-stone-600`) |
 | Shipping, webhooks (timeline dots only) | `violet-400` / `violet-600` |
 
-Do not introduce new hues. Bubbles: your own messages are `bg-emerald-50` (right-aligned, `rounded-br-md`); the other side's are `bg-stone-100` (left-aligned, `rounded-bl-md`).
+These are all the hues. A new one needs a meaning in this table first. Bubbles take the speaker's role colour (`ui.role[from].bubble`); alignment says whose they are: your own on the right (`rounded-br-md`), the other side's on the left (`rounded-bl-md`).
 
 ## Components and tokens (`client/src/ui.ts`)
 
 - Buttons: `ui.btnPrimary` (one per card), `ui.btnSecondary`, `ui.btnGhost` (quiet text actions such as "check now" or "remind"), `ui.btnIcon` (36 px round, needs `aria-label` and `title`), `ui.btnTool` (composer pills), `ui.btnMic` with `ui.micIdle` / `ui.micRecording` (the composer's 56 px microphone, the only one), `ui.btnSend` (the composer's 36 px send button), `ui.btnPayPal` (pay links only), `ui.btnBubble` (small actions inside a bubble). `CopyButton` copies a link (small secondary by default, `primary` when it is the card's main action).
 - Inputs: `ui.input` for inputs and selects; `ui.label` above them.
 - Popovers: a `<details>` with `ui.summary` on the `<summary>` and `ui.menu` on the panel. Call `useCloseOnOutside(ref)` so a click outside or Escape closes it.
-- Status: a small dot (`h-1.5 w-1.5 rounded-full`) or a check circle with a short text, not a coloured pill per field. Status pills (`rounded-full px-2 py-0.5 text-[11px]`) are only for proposal states.
+- Status: `ui.pill` plus one `ui.tone.*` (or a `ui.role[role].chip`) is the one chip style. Use it for proposal states, chat events, the confirm status, the payment badge, the "Still needed" fields, the board row states and the role chip in the room header. Elsewhere a small dot or a check circle with a short text is enough.
 - QR codes: `QrImage` (drawn in the browser with `qrcode`, `rounded-lg ring-1 ring-stone-200`, a `ui.skeleton` square until ready). Used for the buyer's pay link (64 px) and the buyer invite (168 px).
-- System events in the chat are centred `text-xs` lines. Milestones (confirmed, invoice created, deposit, balance, paid in full, shipped, photo approved) get `bg-emerald-50` and a check icon. Alerts get `bg-amber-50`.
+- System events in the chat are centred `rounded-full` chips (`text-xs font-medium`, a 14 px icon, the short `event.*` text such as "Emily Carter confirmed" or "Deposit received $36.00"). The tone comes from `EVENT_CHIP` in `ChatPanel.tsx`: done for confirmations, payments received, photo approved and shipped; pay for the invoice and reminders; action for changed terms and requested photo changes; error for a cancelled invoice or changed invoice text; quiet for the deal opening.
+
+### Your turn (`components/YourTurn.tsx`, `client/src/nextAction.ts`)
+
+- `nextAction(view)` derives the one next step from the deal view only; it never changes PayPal or money state. `YourTurn` draws it as a line, never a button, so no card gets a second filled button: my action = amber (`ui.tone.action`, `ring-amber-200`, an `amber-500` dot, "Your turn · {action}"); the other side's move = quiet `bg-stone-100` with a clock icon, "Waiting for {name}"; nothing = no line. Test id `your-turn` with `data-action`.
+
+| State | Maker | Buyer |
+|---|---|---|
+| Cancelled, terms missing or with errors, locked, paid in full | nothing | nothing |
+| No invoice, I have not confirmed | `confirm` | `confirm` |
+| No invoice, the other side has not confirmed | `waiting` | `waiting` |
+| Both confirmed, the invoice proposal is pending or failed | `approveInvoice` | `waiting` (maker) |
+| Invoice, deposit not paid | `waiting` | `payDeposit` (amount) |
+| Deposit paid, no progress photo waiting | `sendPhoto` | `waiting` |
+| A progress photo waits for a decision | `waiting` | `reviewPhoto` (once interpreted) |
+| Photo approved, balance due | `waiting` | `payBalance` (amount) |
+
+- Phone tabs (buyer under 768 px) carry an amber dot (`data-attention="true"`) where an action waits: Agreement for `confirm` or an open question to me, Pay for `payDeposit`/`payBalance`, Chat for `reviewPhoto`.
+
+### Payment card (`PaymentPanel.tsx`) and the phone pay bar
+
+- Title row: "Payment" and the status badge (`pay-badge`, `data-state` invoiced | deposit_paid | balance_due | paid; tones pay, done, action, done; none when cancelled).
+- Three tiles (`invoice-paid` emerald, `invoice-due` amber while something is due, `invoice-total` stone), each a short label and the amount alone.
+- The pay link (`ui.btnPayPal`) names the amount: "Pay $36.00 deposit", "Pay $84.00 balance". The private-window tip sits behind an info icon button (`pay-tip`, a `<details>` popover with `useCloseOnOutside`).
+- On the buyer's phone, while the next action is `payDeposit` or `payBalance` and the Pay tab is not open, `PayBar` (`pay-bar`, the same `ui.btnPayPal` link with the amount, `target="_blank" rel="noopener noreferrer"`) sticks above the composer. The link must pass `isSandboxLink`.
 
 ### Deal progress (`components/DealProgress.tsx`)
 
@@ -66,7 +97,10 @@ Do not introduce new hues. Bubbles: your own messages are `bg-emerald-50` (right
 
 ### Agreement card (`AgreementPanel.tsx`)
 
-- Three grouped lines, in this order: What (item, quantity above 1, size, colour, measurements), Price and deposit (total price in bold, then deposit with its percent and the balance), Delivery ("By <date>", then shipping). Each line: a 32 px `rounded-lg` icon tile (`tag`, `wallet`, `truck`; `bg-emerald-50 text-emerald-700` when filled, `bg-stone-50 text-stone-300` when empty), the group name in `ui.meta`, and the values in `text-sm` (the lead value `font-semibold stone-900`, the rest `stone-700`, joined with " · "). An empty group says "Not agreed yet" in `stone-400`. Test ids: `agreement-line` with `data-group` and `data-filled`.
+- The What line first (item, quantity above 1, size, colour, measurements): a 32 px `rounded-lg` `tag` icon tile (`bg-emerald-50 text-emerald-700` when filled, `bg-stone-50 text-stone-300` when empty), the group name in `ui.meta`, the values in `text-sm` (the lead value `font-semibold stone-900`, the rest `stone-700`, joined with " · "). Under it a `grid-cols-3` row of tiles: the money group (`col-span-2`) holds the Price and Deposit tiles (deposit with its percent and the balance as a note), the delivery group holds the Delivery tile (the date, then shipping). A filled tile is `bg-emerald-50 ring-1 ring-emerald-100` with the value in `text-lg font-semibold text-emerald-900`; an empty one is `bg-stone-50` with "Not agreed yet" in `stone-400`. Test ids: `agreement-line` with `data-group` and `data-filled` on the What line and on the two groups.
+- Missing terms: "Still needed" followed by one amber chip per field (`agreement-missing`, `agreement-missing-field` with `data-field`).
+- Open questions (`QuestionsPanel.tsx`) are amber callouts with a `help` icon: `bg-amber-100 ring-amber-300` and a bold "For you to answer" when the answer is mine, `bg-amber-50 ring-amber-100` when it is the other side's.
+- Confirm status (`ConfirmCard.tsx`): chips, not sentences. `confirm-mine` = a done chip with a check and "You"; `confirm-other` = the other party's full name, a done chip with a check once they confirmed, else a quiet "{name} · waiting" chip (`data-state` confirmed | waiting).
 - The lines changed by the latest message that set a term show a quiet link under them, "from Ravi's message" (or "from your message"), with the message icon; a click scrolls to that message and flashes it like a citation. Judge mode adds `#seq` after it. When a snapshot changes a line, that line plays `term-flash` once.
 - "Show all details" (a small ghost button with a chevron in the card's title row, `agreement-expand`) swaps the lines for the full labelled list (`agreement-row`, `agreement-value`, `CiteChip` per term). Both stay in the DOM; the hidden one has `hidden`.
 
@@ -89,7 +123,7 @@ The user's rule: hide technical labels from the normal maker and buyer views, ke
 
 - **The flag.** Judge mode is on when the room URL has `judge=1` (`/r/:id?t=TOKEN&judge=1`). `App.tsx` reads it and `Room` puts it in the `JudgeMode` React context (`client/src/judge.ts`). Components read it with `useJudge()`. The room root has `data-judge="on|off"`. The DealView data does not change, only what is drawn.
 - **Hidden in the normal view, shown in judge mode:** the model and latency on chat bubbles (`model-badge`, for example "Flash 4.8 s"), message numbers (`#3`) on bubbles, citation numbers on agreement rows and questions, the hash in system events ("…agreement (a87671f50eef…)") and in proposal reasons, the agreement fingerprint line in the confirm footer (`confirm-hash`), the `SAUDA-<id>` deal id in the room header, and PayPal debug IDs on failed proposal cards.
-- **Text that contains a hash or a message number** gets a `.plain` twin key in en, hi and es (for example `event.agreement_confirmed.plain`). `tView(lang, key, params, judge)` and `renderEvent(…, judge)` choose the twin outside judge mode. A new string with a hash, id or `#seq` needs a `.plain` twin too.
+- **Text that contains a hash or a message number** gets a `.plain` twin key in every language (for example `event.agreement_confirmed.plain`). `tView(lang, key, params, judge)` and `renderEvent(…, judge)` choose the twin outside judge mode. A new string with a hash, id or `#seq` needs a `.plain` twin too.
 - **The source link stays.** Outside judge mode, `CiteChip` is a small message icon (`Icon name="message"`, `stone-300`, amber on hover) with the title "Show the message this came from". A click still scrolls to the source message and flashes it. In judge mode it shows `#seq`. Keep the `citation` test id and `data-seq` in both modes.
 - **Still shown in the normal view** because they are business information, not technical labels: the PayPal invoice number, amounts, tracking carrier and number, and the "sample clip" tag. The Money timeline tab is the opt-in technical log, so it keeps its methods, paths, HTTP statuses and debug IDs in both modes.
 - **FEAT-004 `/demo`** loads both iframes with `&judge=1`. A "Technical details" switch in the `/demo` header (a `ui.btnSecondary` with `aria-pressed`) may reload the iframes with or without `judge=1`. The normal maker and buyer links never set it.
@@ -121,11 +155,11 @@ All keyframes live in `styles.css` and switch off under `prefers-reduced-motion`
 
 - Built from `ui.*` tokens, `Icon` and the colours above; no new hues, no emoji icons.
 - One primary button per card; finished or empty states fold away or render nothing.
-- Every string in en, hi and es; check Hindi at 390 px width for wrapping.
+- Every string in every language on the final list (hi, en, es, fr, pt, de, ja). Write en, hi and es by hand; draft new or changed keys for the others with `scripts/translate-strings.ts --langs=fr,pt,de,ja --keys=<keys> --write` (Gemini draft, back-translation and a judge call), then read the result. `client/src/i18n.test.ts` fails on a missing key or a changed placeholder. Check Hindi, German (long words) and Japanese at 390 px width for wrapping.
 - Technical labels (model, latency, `#seq`, hashes, ids, debug IDs) render only when `useJudge()` is true; text containing them has a `.plain` twin.
-- `/demo`: two room iframes in judge mode (`&judge=1`) on `bg-stone-50`, each in a `rounded-2xl ring-1 ring-stone-200` frame with a small `ui.meta` caption (Maker · हिंदी, Buyer · English) above it, and "Start over" as a `ui.btnSecondary` in a slim header. They stack below `lg`.
-- Production board: a white `ui.card`. Row states use the same language as the payment milestones: done = emerald check circle, ready = hollow emerald ring, locked = `Icon name="lock"` in `stone-400` with the row text in `stone-400`. Bars are `bg-emerald-600` (done) or `bg-emerald-200` (ready) or `bg-stone-200` (locked). Gates are diamonds in the same colours. The deadline is a thin `red-500` line. The order row reads "<item> · <buyer name>"; `SAUDA-<id>` appears only in judge mode. Keep the `board-row-<key>` test ids and `data-state`.
-- Production board card: the title and the one-line subtitle on the left, the state legend (done, ready, locked, drawn with the same marks) on the right; a `board-loading` skeleton while the board chunk loads.
+- `/demo`: as described under Layout (Judge mode pill, role-coloured captions, scaled iframes in judge mode). Check it at 1600 px and at 1920 × 1080 with about 90% zoom (the video setup): both rooms, their agreements and microphones visible at once.
+- Production board: a white `ui.card`. Each row starts with a state chip (`board/StateChip.tsx` on the fallback board, the `.sauda-state` span in `styles.css` on Bryntum): done = `ui.tone.done` with a check, ready = `ui.tone.ready` (sky) with a hollow ring, locked = `ui.tone.quiet` with a lock, and the locked row text in `stone-400`. Bars are `bg-emerald-600` (done), `bg-sky-200` (ready) or `bg-stone-200` (locked). Gates are diamonds in the same colours. The amber "Waiting for the PayPal payment" chip (`.sauda-waiting`) stays on a gated row. The deadline is a thin `red-500` line. The order row reads "<item> · <buyer name>"; `SAUDA-<id>` appears only in judge mode. Keep the `board-row-<key>` test ids and `data-state`.
+- Production board card: the title on the left (no subtitle), the state legend drawn with the same chips on the right; a `board-loading` skeleton while the board chunk loads.
 - Voice, agreement, payment and progress UI follow the sections above; a new screen that shows a deal reuses `DealProgress`, `PaymentMoment` and `QrImage` rather than drawing its own.
-- Check every screen on a laptop (1440 × 900) and a phone (390 × 844) for both roles, and in Hindi as well as English.
+- Check every screen on a laptop (1440 × 900) and a phone (390 × 844) for both roles, in Hindi and English, and in Japanese and one long-word language (German) for wrapping.
 - Before asking the user to look, take a screenshot and check it against this file.
