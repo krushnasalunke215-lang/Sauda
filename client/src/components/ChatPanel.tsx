@@ -210,7 +210,8 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
         {photo ? (
           <PhotoBody m={m} view={view} lang={lang} actions={actions} />
         ) : main ? (
-          <p data-testid="message-main" lang={code(mainLang)} className="msg-main whitespace-pre-wrap text-[15px] leading-relaxed text-stone-900">
+          // The reader's own language on top on both sides, darker and heavier than the other language.
+          <p data-testid="message-main" lang={code(mainLang)} className="msg-main whitespace-pre-wrap text-[15px] font-medium leading-relaxed text-stone-950">
             {main}
           </p>
         ) : m.status === 'failed' ? (
@@ -228,11 +229,11 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
             <span
               data-testid="message-sub-lang"
               title={mine ? t(lang, 'chat.translatedFor', { name: other.name }) : t(lang, 'chat.original')}
-              className="shrink-0 text-[11px] font-semibold tracking-wide text-stone-500"
+              className="shrink-0 text-[11px] font-semibold tracking-wide text-stone-400"
             >
               {code(subLang)?.toUpperCase()}
             </span>
-            <p lang={code(subLang)} className="msg-sub min-w-0 whitespace-pre-wrap text-[13px] leading-relaxed text-stone-600">
+            <p lang={code(subLang)} className="msg-sub min-w-0 whitespace-pre-wrap text-[13px] leading-relaxed text-stone-500">
               {sub}
             </p>
           </div>

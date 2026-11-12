@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { CreateDealResult, Lang, Role } from '../../../shared/types.js';
 import { ApiError, api } from '../api.js';
 import { Icon } from '../components/Icon.js';
@@ -13,6 +13,40 @@ function judgeUrl(url: string): string {
   const u = new URL(url, window.location.origin);
   u.searchParams.set('judge', '1');
   return `${u.pathname}${u.search}`;
+}
+
+/** Each room renders at least this wide, so it keeps its desktop layout (agreement beside the chat) in half a screen. */
+const ROOM_WIDTH = 1100;
+/** Smaller than this and the text gets hard to read; the room then gets less width and its own narrower layout. */
+const MIN_SCALE = 0.62;
+
+/**
+ * Side by side (lg and up), a half is often narrower than the room's desktop layout (1024 px): at
+ * 1600 px the agreement dropped under the chat and the composer was cut off. So the room renders at
+ * ROOM_WIDTH and is scaled down to fit, like a browser zoom, and fills the half's full height.
+ */
+function ScaledFrame({ children }: { children: (style: CSSProperties | undefined) => ReactNode }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const split = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+  let style: CSSProperties | undefined;
+  if (split && size && size.w > 0 && size.w < ROOM_WIDTH) {
+    const width = Math.max(size.w, Math.min(ROOM_WIDTH, size.w / MIN_SCALE));
+    const scale = size.w / width;
+    style = { width, height: size.h / scale, transform: `scale(${scale})`, transformOrigin: '0 0' };
+  }
+  return (
+    <div ref={box} className="h-[85dvh] overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200 lg:h-auto lg:min-h-0 lg:flex-1">
+      {children(style)}
+    </div>
+  );
 }
 
 /**
@@ -85,8 +119,9 @@ export function Demo() {
                 {t(UI, `role.${role}`)} · <span lang={lang}>{t(lang, `langName.${lang}`)}</span>
               </span>
             </div>
-            <div className="h-[85dvh] overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200 lg:h-auto lg:min-h-0 lg:flex-1">
-              {deal ? (
+            <ScaledFrame>
+              {(style) =>
+              deal ? (
                 <iframe
                   key={deal.id}
                   data-testid={`demo-${role}`}
@@ -94,6 +129,7 @@ export function Demo() {
                   src={judgeUrl(deal[role].url)}
                   allow="microphone; autoplay"
                   className="block h-full w-full"
+                  style={style}
                 />
               ) : (
                 <div className="flex h-full min-h-80 flex-col gap-4 p-5" data-testid="demo-loading" aria-busy="true">
@@ -103,8 +139,9 @@ export function Demo() {
                   <div className={`${ui.skeleton} ml-auto h-20 w-1/2 rounded-2xl`} />
                   <p className={`${ui.meta} mt-auto text-center`}>{error ? '' : t(UI, 'demo.starting')}</p>
                 </div>
-              )}
-            </div>
+              )
+              }
+            </ScaledFrame>
           </section>
         ))}
       </main>

@@ -71,6 +71,13 @@ test('README screenshot: demo split', async ({ browser }) => {
   await settled(makerFrame.locator('[data-testid="message"][data-from="maker"]').first());
   await expect(buyerFrame.locator('[data-testid="message"][data-from="maker"]').first()).toHaveAttribute('data-status', 'done');
   await shot(home, 'demo-split');
+  // Review only: a 1600 px screen, where each room is scaled to keep its agreement beside the chat and the composer in view.
+  await home.setViewportSize({ width: 1600, height: 900 });
+  for (const frame of [makerFrame, buyerFrame]) {
+    await expect(frame.getByTestId('agreement')).toBeInViewport();
+    await expect(frame.getByTestId('composer-send')).toBeInViewport();
+  }
+  await shot(home, 'demo-split-1600');
   await home.close();
 });
 
