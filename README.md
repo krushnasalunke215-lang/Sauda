@@ -11,7 +11,7 @@
 ## Try it in 2 minutes
 
 1. Open https://184-193-2-247.sslip.io/demo. It creates a fresh deal and shows the maker (Hindi) on the left and the buyer (English) on the right, in judge mode, which adds the model, the latency and the message number to each turn.
-2. On the buyer side, type in English or tap one of the sample messages above the input box.
+2. On the buyer side, type in English, or open the sample messages (the speech-bubble button in the message box) and pick the first one.
 3. On the maker side, open the sample clips menu (the headphones button, **सैंपल क्लिप**; the maker's screen is in Hindi) and press the first clip, the full order spoken by a real Hindi speaker. Gemini transcribes and translates it, and the agreement fills in on both sides. The AI then asks whether the price includes shipping; press the shipping clip to answer it.
 4. Press **Confirm this agreement** on the buyer side and **यह समझौता पक्का करें** on the maker side, then **मंज़ूर करें** (Approve) on the maker's invoice card. A real sandbox invoice is created and sent.
 5. On the buyer side, follow the amber **Your turn** line: press **Pay $36.00 deposit** and pay with the sandbox buyer login from the Devpost testing instructions. Keep the pre-filled 36.00. Within about 10 seconds the maker sees **एडवांस मिल गया** (Deposit received) and the buyer sees "Deposit paid". If the PayPal tab keeps loading after "Thank you for using PayPal", close it: the room checks PayPal itself.

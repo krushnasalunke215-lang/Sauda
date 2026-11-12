@@ -42,7 +42,7 @@ export interface ComposerProps {
   onVoice: (blob: Blob, contentType: string) => Promise<string | null>;
   onSample: (id: string) => Promise<string | null>;
   onPhoto: (kind: PhotoKind, jpeg: Blob) => Promise<boolean>;
-  /** Sample messages shown as chips above the input; a tap sends one. */
+  /** Sample messages in a small menu behind the message icon; a tap sends one. */
   sampleTexts?: readonly string[];
   /** Uploads the built-in sample photo for photoKind; absent when there is none. */
   onSamplePhoto?: () => Promise<boolean>;
@@ -142,6 +142,8 @@ export function Composer(props: ComposerProps) {
   const fileInput = useRef<HTMLInputElement>(null);
   const menu = useRef<HTMLDetailsElement>(null);
   useCloseOnOutside(menu);
+  const textMenu = useRef<HTMLDetailsElement>(null);
+  useCloseOnOutside(textMenu);
 
   const voiceMsg = voiceId ? messages.find((m) => m.id === voiceId) : undefined;
   const stage: Stage = recording
@@ -181,6 +183,7 @@ export function Composer(props: ComposerProps) {
 
   async function sendSample(v: string) {
     if (busy) return;
+    if (textMenu.current) textMenu.current.open = false;
     setBusy(true);
     await onSend(v);
     setBusy(false);
@@ -232,15 +235,6 @@ export function Composer(props: ComposerProps) {
 
   return (
     <div className="p-3 sm:p-4">
-      {sampleTexts.length > 0 && (
-        <div className="scroll-quiet -mx-1 mb-2 flex gap-1.5 overflow-x-auto px-1 pb-0.5" role="group" aria-label={t(lang, 'composer.sampleTexts')} data-testid="sample-texts">
-          {sampleTexts.map((s, i) => (
-            <button key={s} type="button" data-testid="sample-text" data-index={i} title={s} disabled={busy} onClick={() => void sendSample(s)} className={`${ui.chip} max-w-[18rem]`}>
-              <span className="truncate">{s}</span>
-            </button>
-          ))}
-        </div>
-      )}
       <div className="flex items-end gap-2.5 sm:gap-3">
         <PushToTalk
           lang={lang}
@@ -330,6 +324,21 @@ export function Composer(props: ComposerProps) {
                         >
                           <Icon name="play" size={12} className="text-brand" />
                           {s.label[lang] ?? s.label.en}
+                        </button>
+                      ))}
+                    </div>
+                  </details>
+                )}
+                {sampleTexts.length > 0 && (
+                  <details ref={textMenu} className="relative" data-testid="sample-texts-menu">
+                    <summary className={`${ui.btnTool} ${ui.summary}`} title={t(lang, 'composer.sampleTexts')} aria-label={t(lang, 'composer.sampleTexts')}>
+                      <Icon name="message" />
+                      <span className="hidden @lg:inline">{t(lang, 'composer.sampleTexts')}</span>
+                    </summary>
+                    <div className={`${ui.menu} absolute bottom-full left-0 mb-2 w-80 max-w-[calc(100vw-2rem)]`} role="group" aria-label={t(lang, 'composer.sampleTexts')}>
+                      {sampleTexts.map((s, i) => (
+                        <button key={s} type="button" data-testid="sample-text" data-index={i} title={s} disabled={busy} onClick={() => void sendSample(s)} className={ui.menuItem}>
+                          <span className="min-w-0 text-left">{s}</span>
                         </button>
                       ))}
                     </div>

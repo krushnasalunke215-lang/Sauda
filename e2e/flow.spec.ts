@@ -102,7 +102,7 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
   await expect(buyer.getByTestId('pay-deposit')).toHaveCount(0);
   await expect(buyer.getByTestId('pay-balance')).toHaveCount(0);
   // The deposit gate opens the work on the maker's production board; packing stays locked behind the balance.
-  await expect(buyer.getByTestId('tab-board')).toHaveCount(0);
+  await expect(buyer.getByTestId('board-toggle')).toHaveCount(0);
   await expectBoard(maker, deal.id, { deposit_paid: 'done', cutting_embroidery: 'ready', balance_paid: 'ready', pack_ship: 'locked' });
 
   // The maker sends the sample progress photo (samples/progress.jpg, through the normal photo upload),

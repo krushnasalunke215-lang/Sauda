@@ -251,6 +251,10 @@ const en = {
   'tab.deal': 'Deal',
   'tab.timeline': 'Money timeline',
   'tab.board': 'Production',
+  'sidebar.show': 'Show details',
+  'sidebar.hide': 'Hide details',
+  'board.open': 'Open the board',
+  'board.shrink': 'Shrink the board',
 
   'board.title': 'Production board',
   'board.order': 'SAUDA-{id} · {item} · {buyer}',
@@ -702,6 +706,10 @@ const hi: Dict = {
   'tab.deal': 'सौदा',
   'tab.timeline': 'पैसों की टाइमलाइन',
   'tab.board': 'काम',
+  'sidebar.show': 'विवरण दिखाएँ',
+  'sidebar.hide': 'विवरण छिपाएँ',
+  'board.open': 'बोर्ड खोलें',
+  'board.shrink': 'बोर्ड छोटा करें',
 
   'board.title': 'काम का बोर्ड',
   'board.order': 'SAUDA-{id} · {item} · {buyer}',
@@ -1150,6 +1158,10 @@ const es: Dict = {
   'tab.deal': 'Trato',
   'tab.timeline': 'Cronología del dinero',
   'tab.board': 'Producción',
+  'sidebar.show': 'Mostrar detalles',
+  'sidebar.hide': 'Ocultar detalles',
+  'board.open': 'Abrir el tablero',
+  'board.shrink': 'Reducir el tablero',
 
   'board.title': 'Tablero de producción',
   'board.order': 'SAUDA-{id} · {item} · {buyer}',

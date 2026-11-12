@@ -62,9 +62,19 @@ export async function settle(sender: Page, viewer: Page, from: Role, nth: number
   await waitForDoneMessage(viewer, from, nth);
 }
 
+/**
+ * Shows a section of the room's sidebar (opening the sidebar if it is hidden): the deal, the money
+ * timeline, or the maker's production board, which widens the sidebar while it is open. Showing the
+ * deal or the timeline shrinks the board again.
+ */
 export async function showTab(page: Page, tab: 'deal' | 'timeline' | 'board'): Promise<void> {
-  await page.getByTestId(`tab-${tab}`).click();
-  await expect(page.getByTestId({ deal: 'agreement', timeline: 'timeline', board: 'board' }[tab])).toBeVisible();
+  const toggle = page.getByTestId('sidebar-toggle');
+  if ((await toggle.getAttribute('aria-pressed')) === 'false') await toggle.click();
+  const boardToggle = page.getByTestId('board-toggle');
+  if ((await boardToggle.count()) > 0 && (await boardToggle.getAttribute('aria-expanded')) !== String(tab === 'board')) await boardToggle.click();
+  const target = page.getByTestId({ deal: 'agreement', timeline: 'timeline', board: 'board' }[tab]);
+  await target.scrollIntoViewIfNeeded();
+  await expect(target).toBeVisible();
 }
 
 /** Checks rows of this deal on the maker's production board (fallback or Bryntum), then goes back to the deal tab. */

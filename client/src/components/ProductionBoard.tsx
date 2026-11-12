@@ -4,6 +4,7 @@ import type { DealView, Lang } from '../../../shared/types.js';
 import { t } from '../i18n.js';
 import { StateChip } from '../board/StateChip.js';
 import { ui } from '../ui.js';
+import { Icon } from './Icon.js';
 
 // The board (Bryntum Gantt or the fallback, picked at build time) loads in its own chunk on first open,
 // so pages without the board never download Bryntum or its CSS.
@@ -38,19 +39,26 @@ function Legend({ lang }: { lang: Lang }) {
 }
 
 /** The maker's production board: this deal plus two sample orders, rebuilt from every DealView snapshot. */
-export function ProductionBoard({ view, lang }: { view: DealView; lang: Lang }) {
+export function ProductionBoard({ view, lang, expanded, onToggle }: { view: DealView; lang: Lang; expanded: boolean; onToggle: () => void }) {
   const board = useMemo(() => mergeBoards([buildBoard(view), ...sampleOrders(new Date(), lang).map(buildBoard)]), [view, lang]);
   return (
-    <section className={`${ui.card} p-5`} data-testid="production-board">
+    <section className={`${ui.card} p-5`} data-testid="production-board" data-expanded={expanded ? 'true' : 'false'}>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <h2 className={ui.title}>{t(lang, 'board.title')}</h2>
-        <Legend lang={lang} />
+        {expanded && <Legend lang={lang} />}
+        {/* The board needs width: in the narrow sidebar it is a button that widens the sidebar and draws the board. */}
+        <button type="button" data-testid="board-toggle" aria-expanded={expanded} className={ui.btnSecondary} onClick={onToggle}>
+          <Icon name={expanded ? 'x' : 'sidebar'} />
+          {t(lang, expanded ? 'board.shrink' : 'board.open')}
+        </button>
       </div>
-      <div className="mt-4">
-        <Suspense fallback={<BoardSkeleton lang={lang} />}>
-          <Board rows={board.rows} dependencies={board.dependencies} startDate={board.startDate} endDate={board.endDate} lang={lang} />
-        </Suspense>
-      </div>
+      {expanded && (
+        <div className="mt-4">
+          <Suspense fallback={<BoardSkeleton lang={lang} />}>
+            <Board rows={board.rows} dependencies={board.dependencies} startDate={board.startDate} endDate={board.endDate} lang={lang} />
+          </Suspense>
+        </div>
+      )}
     </section>
   );
 }

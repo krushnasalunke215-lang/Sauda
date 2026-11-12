@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import type { DealView, Role } from '../shared/types.js';
-import { createDeal, openRoles, sendText } from './helpers.js';
+import { createDeal, openRoles, sendText, showTab } from './helpers.js';
 import { recordPayment } from './paypal-helpers.js';
 
 /**
@@ -107,8 +107,10 @@ test('screenshot: demo review', async ({ browser, request }) => {
     await settled(makerMsgs.nth(nth));
     await expect(buyer.locator('[data-testid="message"][data-from="maker"]').nth(nth)).toHaveAttribute('data-status', 'done');
   };
-  await buyer.getByTestId('composer-input').fill(BUYER_TEXT);
-  await buyer.getByTestId('composer-send').click();
+  // The buyer's sample messages, behind the message icon in her composer.
+  await buyer.getByTestId('sample-texts-menu').locator('summary').click();
+  await shot(page, 'review-demo-samples');
+  await buyer.getByTestId('sample-text').first().click();
   await settled(buyerMsgs.first());
   await sample('hindi-order', 0);
   await shot(page, 'review-demo');
@@ -139,6 +141,30 @@ test('screenshot: demo review', async ({ browser, request }) => {
   await expect(buyer.getByTestId('payment-moment')).toHaveCount(0, { timeout: 15_000 });
   await shot(page, 'review-demo-deposit');
   await half('maker').screenshot({ path: `${OUT}review-maker-deposit.png` });
+
+  // The sidebar: the maker's board opened in it, then the money timeline section, then both sidebars hidden.
+  await maker.getByTestId('board-toggle').click();
+  await expect(maker.locator(`[data-testid="board-row-deposit_paid"][data-order="${dealId}"]`)).toHaveAttribute('data-state', 'done');
+  await maker.getByTestId('board').scrollIntoViewIfNeeded();
+  await shot(page, 'review-demo-board');
+  await half('maker').screenshot({ path: `${OUT}review-maker-board.png` });
+  await maker.getByTestId('board-toggle').click();
+  await maker.getByTestId('timeline').scrollIntoViewIfNeeded();
+  await buyer.getByTestId('timeline').scrollIntoViewIfNeeded();
+  await shot(page, 'review-demo-timeline');
+  await maker.getByTestId('sidebar-toggle').click();
+  await buyer.getByTestId('sidebar-toggle').click();
+  await shot(page, 'review-demo-hidden');
+
+  // The buyer on a phone, outside judge mode.
+  const buyerPath = new URL((await page.getByTestId('demo-buyer').getAttribute('src'))!, 'http://x');
+  buyerPath.searchParams.delete('judge');
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const mobile = await phone.newPage();
+  await mobile.goto(`${buyerPath.pathname}${buyerPath.search}`);
+  await expect(mobile.getByTestId('room')).toHaveAttribute('data-layout', 'tabs');
+  await shot(mobile, 'review-mobile-buyer');
+  await phone.close();
   await page.close();
 });
 
@@ -206,10 +232,10 @@ test('README screenshots', async ({ browser, request }) => {
 
   // The money timeline with the PayPal debug IDs, once the buyer's payment moment has faded.
   await expect(buyer.getByTestId('payment-moment')).toHaveCount(0);
-  await buyer.getByTestId('tab-timeline').click();
+  await showTab(buyer, 'timeline');
   await expect(buyer.locator('[data-testid="timeline-entry"][data-type="payment"][data-kind="deposit"]')).toHaveCount(1);
   await shot(buyer, 'money-timeline');
-  await buyer.getByTestId('tab-deal').click();
+  await showTab(buyer, 'deal');
 
   // The maker's sample progress photo, checked against the agreement, as the buyer sees it.
   await maker.locator('[data-testid="sample-photo"][data-kind="progress"]').click();
@@ -224,7 +250,7 @@ test('README screenshots', async ({ browser, request }) => {
   await shot(buyer, 'buyer-balance-due');
 
   // The maker's production board: the deposit gate done, work under way, the balance gate waiting.
-  await maker.getByTestId('tab-board').click();
+  await showTab(maker, 'board');
   await expect(maker.locator(`[data-testid="board-row-deposit_paid"][data-order="${deal.id}"]`)).toHaveAttribute('data-state', 'done');
   await shot(maker, 'board');
 

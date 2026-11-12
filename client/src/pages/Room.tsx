@@ -66,7 +66,7 @@ function RoomSkeleton() {
           <div className={`${ui.skeleton} ml-auto h-9 w-9 rounded-full lg:ml-0`} />
         </div>
       </div>
-      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_400px] split:grid-cols-[minmax(0,1fr)_340px] split:gap-3 split:p-3">
+      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_30%] split:grid-cols-[minmax(0,1fr)_max(240px,30%)] split:gap-3 split:p-3">
         <div className={`${ui.card} flex min-h-[60vh] flex-col gap-4 p-6`}>
           <div className={`${ui.skeleton} mx-auto h-3 w-56 rounded-full`} />
           <div className={`${ui.skeleton} h-20 w-3/5 rounded-2xl`} />
@@ -183,7 +183,9 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
   const [error, setError] = useState<string | null>(null);
   const [samples, setSamples] = useState<SampleInfo[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
-  const [tab, setTab] = useState<'deal' | 'timeline' | 'board'>('deal');
+  // The sidebar (deal, money timeline, the maker's board) starts open; the header button hides it.
+  const [sidebar, setSidebar] = useState(true);
+  const [boardOpen, setBoardOpen] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileTab>('chat');
   const narrow = useNarrow();
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -417,8 +419,9 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
         label={t(lang, action.kind === 'payDeposit' ? 'pay.payDeposit' : 'pay.payBalance', { amount: `$${(action.cents / 100).toFixed(2)}` })}
       />
     ) : null;
-  // The production board is the maker's (FEAT-005).
-  const board = tab === 'board' && view.role === 'maker';
+  // The production board is the maker's (FEAT-005); while it is open the sidebar widens for it.
+  const board = sidebar && boardOpen && view.role === 'maker';
+  const sidebarLabel = t(lang, sidebar ? 'sidebar.hide' : 'sidebar.show');
 
   return (
     <JudgeMode.Provider value={judge}>
@@ -441,7 +444,6 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
                 {withBefore}
                 <span className={`font-medium ${ui.role[otherRole(view.role)].text}`}>{other.name}</span>
                 {withAfter}
-                {judge && ` · SAUDA-${view.id}`}
               </div>
             </div>
           </div>
@@ -470,6 +472,20 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
             </button>
           )}
           {inviteUrl && <InviteMenu url={inviteUrl} lang={lang} buyer={view.parties.buyer.name} />}
+          {!mobile && (
+            <button
+              type="button"
+              data-testid="sidebar-toggle"
+              aria-pressed={sidebar}
+              aria-controls="room-sidebar"
+              title={sidebarLabel}
+              className={`${ui.btnSecondary} py-1.5`}
+              onClick={() => setSidebar(!sidebar)}
+            >
+              <Icon name="sidebar" />
+              <span className="hidden sm:inline">{sidebarLabel}</span>
+            </button>
+          )}
           </div>
         </div>
       </header>
@@ -530,51 +546,37 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
         <div
           className={`mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem-1px)] lg:flex-none lg:grid-rows-[minmax(0,1fr)] split:h-[calc(100dvh-6rem-1px)] split:flex-none split:grid-rows-[minmax(0,1fr)] split:gap-3 split:p-3 ${
             // The production board needs a wide side panel; the chat narrows while it is open.
-            board
-              ? 'lg:grid-cols-[minmax(340px,1fr)_minmax(0,1.6fr)] split:grid-cols-[minmax(260px,1fr)_minmax(0,1.4fr)]'
-              : 'lg:grid-cols-[minmax(0,1fr)_400px] split:grid-cols-[minmax(0,1fr)_340px]'
+            !sidebar
+              ? ''
+              : board
+                ? 'lg:grid-cols-[minmax(340px,1fr)_minmax(0,1.6fr)] split:grid-cols-[minmax(260px,1fr)_minmax(0,1.4fr)]'
+                : 'lg:grid-cols-[minmax(0,1fr)_30%] split:grid-cols-[minmax(0,1fr)_max(240px,30%)]'
           }`}
         >
-          <section className={`${ui.card} flex min-h-[70vh] flex-col overflow-hidden lg:min-h-0 split:min-h-0`}>
-            {chat}
-            {notices}
-            {composer}
-          </section>
+          <div className="flex min-h-0 flex-col gap-4 split:gap-3">
+            {/* With the sidebar hidden, the "Your turn" line sits above the chat. */}
+            {!sidebar && yourTurn}
+            <section className={`${ui.card} flex min-h-[70vh] flex-1 flex-col overflow-hidden lg:min-h-0 split:min-h-0`}>
+              {chat}
+              {notices}
+              {composer}
+            </section>
+          </div>
 
-          <aside className="scroll-quiet flex min-h-0 flex-col gap-4 lg:-mr-2 lg:overflow-y-auto lg:pr-2 split:-mr-2 split:gap-3 split:overflow-y-auto split:pr-2">
-            {yourTurn}
-            <div className="flex shrink-0 gap-1 rounded-xl bg-stone-200/60 p-1 text-sm" role="tablist">
-              {(view.role === 'maker' ? (['deal', 'timeline', 'board'] as const) : (['deal', 'timeline'] as const)).map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === k}
-                  data-testid={`tab-${k}`}
-                  onClick={() => setTab(k)}
-                  className={`flex flex-auto items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 font-medium transition-colors ${
-                    tab === k ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-900'
-                  }`}
-                >
-                  {t(lang, `tab.${k}`)}
-                  {k === 'timeline' && view.timeline.length > 0 && (
-                    <span className="rounded-full bg-stone-100 px-1.5 text-[11px] font-medium text-stone-500">{view.timeline.length}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-            {board ? (
-              <ProductionBoard view={view} lang={lang} />
-            ) : tab === 'timeline' ? (
+          {sidebar && (
+            <aside
+              id="room-sidebar"
+              data-testid="sidebar"
+              className="scroll-quiet flex min-h-0 flex-col gap-4 lg:-mr-2 lg:overflow-y-auto lg:pr-2 split:-mr-2 split:gap-3 split:overflow-y-auto split:pr-2"
+            >
+              {yourTurn}
+              {payment}
+              {proposals}
+              {agreement}
               <MoneyTimeline view={view} lang={lang} />
-            ) : (
-              <>
-                {payment}
-                {proposals}
-                {agreement}
-              </>
-            )}
-          </aside>
+              {view.role === 'maker' && <ProductionBoard view={view} lang={lang} expanded={board} onToggle={() => setBoardOpen(!boardOpen)} />}
+            </aside>
+          )}
         </div>
       )}
     </div>
