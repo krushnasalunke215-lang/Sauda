@@ -149,7 +149,8 @@ export function PaymentPanel({
         </span>
       </div>
 
-      <dl className="mt-4 grid grid-cols-3 gap-2">
+      {/* Three tiles in a row where the sidebar is wide enough, two per row in the narrow /demo sidebar. */}
+      <dl className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] gap-2">
         <Tile label={t(lang, 'pay.paid')} cents={inv.paidCents} tone="bg-emerald-50 text-emerald-800" testId="invoice-paid" />
         <Tile label={t(lang, 'pay.due')} cents={inv.dueCents} tone={inv.dueCents > 0 ? 'bg-amber-50 text-amber-900' : 'bg-stone-50 text-stone-500'} testId="invoice-due" />
         <Tile label={t(lang, 'pay.total')} cents={inv.totalCents} tone="bg-stone-50 text-stone-900" testId="invoice-total" />
