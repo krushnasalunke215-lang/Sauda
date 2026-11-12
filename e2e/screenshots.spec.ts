@@ -166,6 +166,8 @@ test('README screenshots', async ({ browser, request }) => {
   await mobile.goto(deal.buyer.url);
   await mobile.getByTestId('mobile-tab-pay').click();
   await expect(mobile.getByTestId('pay-balance')).toBeVisible();
+  // The chat scrolled the page to its end; the Pay tab is shown from the top.
+  await mobile.evaluate(() => window.scrollTo(0, 0));
   await shot(mobile, 'mobile-buyer');
   await mobile.getByTestId('mobile-tab-chat').click();
   await expect(mobile.getByTestId('mobile-panel-chat')).toBeVisible();

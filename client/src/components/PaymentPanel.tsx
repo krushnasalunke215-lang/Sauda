@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { depositPaid, fullyPaid, type DealView, type Lang, type Message } from '../../../shared/types.js';
 import { t, tMaybe } from '../i18n.js';
-import { ui } from '../ui.js';
+import { ui, useCloseOnOutside } from '../ui.js';
 import { Icon } from './Icon.js';
 import { QrImage } from './QrImage.js';
 
@@ -9,7 +9,7 @@ const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES' };
 const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 /** Only PayPal sandbox pay pages are ever linked. */
-const isSandboxLink = (u: string) => {
+export const isSandboxLink = (u: string) => {
   try {
     const url = new URL(u);
     return url.protocol === 'https:' && url.hostname.endsWith('.sandbox.paypal.com');
@@ -43,13 +43,41 @@ function Milestone({ label, amount, event, lang, testId }: { label: string; amou
   );
 }
 
-function PayLink({ url, label, qrLabel, testId }: { url: string; label: string; qrLabel: string; testId: string }) {
+/** The private-window tip, folded behind an info icon so the pay button stands alone. */
+function PayTip({ lang }: { lang: Lang }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  useCloseOnOutside(ref);
+  const label = t(lang, 'pay.tipLabel');
   return (
-    <div className="flex items-center gap-3">
+    <details ref={ref} className="relative shrink-0" data-testid="pay-tip">
+      <summary className={`${ui.btnIcon} ${ui.summary}`} aria-label={label} title={label}>
+        <Icon name="info" size={18} />
+      </summary>
+      <p className={`${ui.menu} absolute right-0 top-full mt-2 w-64 p-3 text-xs leading-relaxed text-stone-600`}>{t(lang, 'pay.tip')}</p>
+    </details>
+  );
+}
+
+function PayLink({ url, label, qrLabel, testId, lang }: { url: string; label: string; qrLabel: string; testId: string; lang: Lang }) {
+  return (
+    <div className="flex items-center gap-2">
       <a data-testid={testId} href={url} target="_blank" rel="noopener noreferrer" className={`${ui.btnPayPal} flex-1`}>
         {label}
       </a>
+      <PayTip lang={lang} />
       <QrImage url={url} size={64} alt={qrLabel} testId="payer-qr" />
+    </div>
+  );
+}
+
+/** One amount tile (paid, due, total): the label above, only the amount in the test-id element. */
+function Tile({ label, cents, tone, testId }: { label: string; cents: number; tone: string; testId: string }) {
+  return (
+    <div className={`rounded-xl p-3 ${tone}`}>
+      <dt className="text-xs font-medium opacity-80">{label}</dt>
+      <dd data-testid={testId} className="mt-0.5 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">
+        {usd(cents)}
+      </dd>
     </div>
   );
 }
@@ -87,8 +115,8 @@ export function PaymentPanel({
   if (cancelled) step = { kind: 'note', text: t(lang, 'pay.cancelled') };
   else if (paid) step = { kind: 'note', text: t(lang, 'pay.paidInFull') };
   else if (buyer) {
-    if (!deposit) step = { kind: 'pay', label: t(lang, 'pay.payDeposit'), testId: 'pay-deposit' };
-    else if (view.progressApproval) step = { kind: 'pay', label: t(lang, 'pay.payBalance'), testId: 'pay-balance' };
+    if (!deposit) step = { kind: 'pay', label: t(lang, 'pay.payDeposit', { amount: usd(inv.depositCents) }), testId: 'pay-deposit' };
+    else if (view.progressApproval) step = { kind: 'pay', label: t(lang, 'pay.payBalance', { amount: usd(inv.dueCents) }), testId: 'pay-balance' };
     else step = { kind: 'note', text: t(lang, 'pay.balanceAfterPhoto') };
   } else {
     if (!deposit) step = { kind: 'note', text: t(lang, 'pay.waitDeposit', { name: buyerName }) };
@@ -96,34 +124,36 @@ export function PaymentPanel({
     else step = { kind: 'note', text: t(lang, 'pay.waitBalance', { name: buyerName }) };
   }
 
+  // The status badge in the title; it only reads the invoice state and the photo approval.
+  const badge: { state: string; tone: string; text: string } | null = cancelled
+    ? null
+    : paid
+      ? { state: 'paid', tone: ui.tone.done, text: t(lang, 'phase.paid') }
+      : view.progressApproval
+        ? { state: 'balance_due', tone: ui.tone.action, text: t(lang, 'pay.balanceDue') }
+        : deposit
+          ? { state: 'deposit_paid', tone: ui.tone.done, text: t(lang, 'phase.deposit_paid') }
+          : { state: 'invoiced', tone: ui.tone.pay, text: t(lang, 'phase.invoiced') };
+
   return (
     <section className={`${ui.card} p-5`} data-testid="payment-panel" data-status={inv.status}>
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <h2 className={ui.title}>{t(lang, 'pay.title')}</h2>
-        <span data-testid="invoice-number" className={ui.meta}>
+        {badge && (
+          <span data-testid="pay-badge" data-state={badge.state} className={`${ui.pill} ${badge.tone}`}>
+            {badge.state === 'paid' && <Icon name="check" size={12} />}
+            {badge.text}
+          </span>
+        )}
+        <span data-testid="invoice-number" className={`${ui.meta} ml-auto`}>
           {t(lang, 'pay.invoice', { number: inv.number })}
         </span>
       </div>
 
       <dl className="mt-4 grid grid-cols-3 gap-2">
-        <div>
-          <dt className={ui.meta}>{t(lang, 'pay.paid')}</dt>
-          <dd data-testid="invoice-paid" className="mt-0.5 text-xl font-semibold tracking-tight text-emerald-800 tabular-nums">
-            {usd(inv.paidCents)}
-          </dd>
-        </div>
-        <div>
-          <dt className={ui.meta}>{t(lang, 'pay.due')}</dt>
-          <dd data-testid="invoice-due" className="mt-0.5 text-xl font-semibold tracking-tight text-stone-900 tabular-nums">
-            {usd(inv.dueCents)}
-          </dd>
-        </div>
-        <div className="text-right">
-          <dt className={ui.meta}>{t(lang, 'pay.total')}</dt>
-          <dd data-testid="invoice-total" className="mt-0.5 text-xl font-semibold tracking-tight text-stone-500 tabular-nums">
-            {usd(inv.totalCents)}
-          </dd>
-        </div>
+        <Tile label={t(lang, 'pay.paid')} cents={inv.paidCents} tone="bg-emerald-50 text-emerald-800" testId="invoice-paid" />
+        <Tile label={t(lang, 'pay.due')} cents={inv.dueCents} tone={inv.dueCents > 0 ? 'bg-amber-50 text-amber-900' : 'bg-stone-50 text-stone-500'} testId="invoice-due" />
+        <Tile label={t(lang, 'pay.total')} cents={inv.totalCents} tone="bg-stone-50 text-stone-900" testId="invoice-total" />
       </dl>
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-100" aria-hidden>
         <div className="h-full rounded-full bg-emerald-600 transition-[width] duration-700" style={{ width: `${percent}%` }} />
@@ -148,12 +178,7 @@ export function PaymentPanel({
       )}
 
       <div className="mt-4">
-        {step?.kind === 'pay' && link && (
-          <>
-            <PayLink url={link} label={step.label} qrLabel={t(lang, 'pay.qr')} testId={step.testId} />
-            <p className="mt-2 text-xs leading-relaxed text-stone-400">{t(lang, 'pay.tip')}</p>
-          </>
-        )}
+        {step?.kind === 'pay' && link && <PayLink url={link} label={step.label} qrLabel={t(lang, 'pay.qr')} testId={step.testId} lang={lang} />}
         {step?.kind === 'note' && (
           <p
             data-testid="payment-step"

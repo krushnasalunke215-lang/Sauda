@@ -58,7 +58,11 @@ export function Demo() {
             {t(UI, 'app.name')}
           </a>
           <span className="h-6 w-px bg-stone-200" aria-hidden />
-          <span className="min-w-0 flex-1 truncate text-sm text-stone-600">{t(UI, 'demo.title')}</span>
+          <span className="min-w-0 flex-1">
+            <span data-testid="demo-judge" title={t(UI, 'demo.title')} className={`${ui.pill} ${ui.tone.quiet}`}>
+              {t(UI, 'demo.judge')}
+            </span>
+          </span>
           <button type="button" data-testid="demo-restart" className={ui.btnSecondary} disabled={busy} onClick={() => void start()}>
             <Icon name="refresh" className={busy ? 'animate-spin' : undefined} />
             {t(UI, 'demo.restart')}
@@ -76,8 +80,10 @@ export function Demo() {
       <main className="grid flex-1 gap-4 p-4 lg:min-h-0 lg:grid-cols-2">
         {frames.map(({ role, lang }) => (
           <section key={role} className="flex min-h-0 flex-col">
-            <div className={`${ui.meta} mb-1.5 px-1`}>
-              {t(UI, `role.${role}`)} · {t(lang, `langName.${lang}`)}
+            <div className="mb-1.5 px-1">
+              <span data-testid={`demo-caption-${role}`} className={`${ui.pill} ${ui.role[role].chip}`}>
+                {t(UI, `role.${role}`)} · <span lang={lang}>{t(lang, `langName.${lang}`)}</span>
+              </span>
             </div>
             <div className="h-[85dvh] overflow-hidden rounded-2xl bg-white ring-1 ring-stone-200 lg:h-auto lg:min-h-0 lg:flex-1">
               {deal ? (

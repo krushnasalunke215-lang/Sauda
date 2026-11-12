@@ -2,6 +2,8 @@
 
 export type Lang = 'hi' | 'en' | 'es';
 export const LANGS: readonly Lang[] = ['hi', 'en', 'es'];
+/** Each language's name in its own script (the home page language chips). */
+export const LANG_ENDONYMS: Record<Lang, string> = { hi: 'हिंदी', en: 'English', es: 'Español' };
 
 export type Role = 'maker' | 'buyer';
 export const ROLES: readonly Role[] = ['maker', 'buyer'];

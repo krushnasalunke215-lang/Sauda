@@ -70,13 +70,17 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
 
   // Both confirm; the agent proposes the invoice and only the maker can approve it.
   await expect(buyer.getByTestId('confirm-button')).toBeEnabled();
+  await expect(buyer.getByTestId('your-turn')).toHaveAttribute('data-action', 'confirm');
   await buyer.getByTestId('confirm-button').click();
   await expect(buyer.getByTestId('confirm-mine')).toBeVisible();
+  await expect(buyer.getByTestId('your-turn')).toHaveAttribute('data-action', 'waiting');
   await maker.getByTestId('confirm-button').click();
   for (const page of pages) {
     await expect(page.getByTestId('confirm-both')).toBeVisible();
     await expect(page.locator('[data-testid="proposal"][data-tool="create_invoice"]')).toHaveAttribute('data-status', 'pending');
   }
+  await expect(maker.getByTestId('your-turn')).toHaveAttribute('data-action', 'approveInvoice');
+  await expect(buyer.getByTestId('your-turn')).toHaveAttribute('data-action', 'waiting');
   await expect(buyer.getByTestId('proposal-approve')).toHaveCount(0);
   await expect(buyer.getByTestId('proposal-waiting')).toBeVisible();
   await maker.getByTestId('proposal-approve').click();
@@ -88,7 +92,10 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
     await expect(page.getByTestId('text-match')).toHaveAttribute('data-state', 'ok');
     await expect(page.getByTestId('phase')).toHaveAttribute('data-phase', 'invoiced');
     await expect(page.locator('[data-testid="proposal"][data-tool="create_invoice"]')).toHaveAttribute('data-status', 'done');
+    await expect(page.getByTestId('pay-badge')).toHaveAttribute('data-state', 'invoiced');
   }
+  await expect(buyer.getByTestId('your-turn')).toHaveAttribute('data-action', 'payDeposit');
+  await expect(maker.getByTestId('your-turn')).toHaveAttribute('data-action', 'waiting');
   const pay = buyer.getByTestId('pay-deposit');
   await expect(pay).toHaveAttribute('href', /^https:\/\/www\.sandbox\.paypal\.com\//);
   await expect(pay).toHaveAttribute('target', '_blank');
@@ -118,7 +125,10 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
     await expect(page.getByTestId('payment-moment')).toContainText('$36.00');
     await expect(page.getByTestId('phase')).toHaveAttribute('data-phase', 'deposit_paid');
     await expect(page.getByTestId('invoice-due')).toHaveText('$84.00');
+    await expect(page.getByTestId('pay-badge')).toHaveAttribute('data-state', 'deposit_paid');
   }
+  await expect(maker.getByTestId('your-turn')).toHaveAttribute('data-action', 'sendPhoto');
+  await expect(buyer.getByTestId('your-turn')).toHaveAttribute('data-action', 'waiting');
   await expect(buyer.getByTestId('pay-deposit')).toHaveCount(0);
   await expect(buyer.getByTestId('pay-balance')).toHaveCount(0);
   // The deposit gate opens the work on the maker's production board; packing stays locked behind the balance.
@@ -144,9 +154,28 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
     await expect(photo).toHaveAttribute('data-status', 'done');
     await expect(photo.getByTestId('photo-check').first()).toBeVisible();
   }
+  await expect(buyer.getByTestId('your-turn')).toHaveAttribute('data-action', 'reviewPhoto');
+  await expect(maker.getByTestId('your-turn')).toHaveAttribute('data-action', 'waiting');
   await buyer.getByTestId('photo-approve').click();
-  for (const page of pages) await expect(page.getByTestId('photo-decision').last()).toHaveAttribute('data-decision', 'approved');
+  for (const page of pages) {
+    await expect(page.getByTestId('photo-decision').last()).toHaveAttribute('data-decision', 'approved');
+    await expect(page.getByTestId('pay-badge')).toHaveAttribute('data-state', 'balance_due');
+  }
+  await expect(buyer.getByTestId('your-turn')).toHaveAttribute('data-action', 'payBalance');
   await expect(buyer.getByTestId('pay-balance')).toHaveAttribute('href', /^https:\/\/www\.sandbox\.paypal\.com\//);
+
+  // On the buyer's phone the balance is one tap away: a sticky pay bar above the composer, except on the Pay tab.
+  const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  const mobile = await phone.newPage();
+  await mobile.goto(deal.buyer.url);
+  await expect(mobile.getByTestId('mobile-tab-chat')).toHaveAttribute('aria-selected', 'true');
+  await expect(mobile.getByTestId('pay-bar')).toBeVisible();
+  await expect(mobile.getByTestId('pay-bar')).toHaveAttribute('href', /^https:\/\/www\.sandbox\.paypal\.com\//);
+  await expect(mobile.getByTestId('mobile-tab-pay')).toHaveAttribute('data-attention', 'true');
+  await mobile.getByTestId('mobile-tab-pay').click();
+  await expect(mobile.getByTestId('pay-balance')).toBeVisible();
+  await expect(mobile.getByTestId('pay-bar')).toHaveCount(0);
+  await phone.close();
 
   // Balance: a recorded 84.00 payment pays the invoice in full on both pages. PayPal reports
   // recorded payments as MARKED_AS_PAID (checkout payments end as PAID); Sauda treats both as paid.
@@ -156,6 +185,8 @@ test('a full deal: invoice, deposit, progress photo, balance and the tracking ca
     await expect(page.getByTestId('balance-chip')).toHaveAttribute('data-state', 'received');
     await expect(page.getByTestId('phase')).toHaveAttribute('data-phase', 'paid');
     await expect(page.getByTestId('invoice-due')).toHaveText('$0.00');
+    await expect(page.getByTestId('pay-badge')).toHaveAttribute('data-state', 'paid');
+    await expect(page.getByTestId('your-turn')).toHaveCount(0);
   }
   await expectBoard(maker, deal.id, { cutting_embroidery: 'done', balance_paid: 'done', pack_ship: 'ready' });
 

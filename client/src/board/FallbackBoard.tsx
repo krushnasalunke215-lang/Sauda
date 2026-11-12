@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import type { BoardRow, BoardRowState } from '../../../shared/board.js';
-import type { Lang } from '../../../shared/types.js';
 import { Icon } from '../components/Icon.js';
 import { t } from '../i18n.js';
 import { useJudge } from '../judge.js';
 import { ui } from '../ui.js';
 import { formatDay, isWaitingGate, rowLabel, rowTitle, startsExpanded, type BoardProps } from './props.js';
+import { StateChip } from './StateChip.js';
 
 /**
  * The production board without Bryntum: a CSS grid with the step names on the left and a date axis
@@ -15,24 +15,7 @@ import { formatDay, isWaitingGate, rowLabel, rowTitle, startsExpanded, type Boar
 
 const DAY = 86_400_000;
 
-const BAR: Record<BoardRowState, string> = { done: 'bg-emerald-600', ready: 'bg-emerald-200', locked: 'bg-stone-200' };
-
-/** Done: emerald check circle. Ready: hollow emerald ring. Locked: a grey lock (as in the payment panel). */
-function StateMark({ state, lang }: { state: BoardRowState; lang: Lang }) {
-  const label = t(lang, `board.state.${state}`);
-  if (state === 'done')
-    return (
-      <span title={label} className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white">
-        <Icon name="check" size={10} />
-      </span>
-    );
-  if (state === 'ready') return <span title={label} className="h-4 w-4 shrink-0 rounded-full ring-2 ring-inset ring-emerald-600" />;
-  return (
-    <span title={label} className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
-      <Icon name="lock" size={14} className="text-stone-400" />
-    </span>
-  );
-}
+const BAR: Record<BoardRowState, string> = { done: 'bg-emerald-600', ready: 'bg-sky-200', locked: 'bg-stone-200' };
 
 export function Board({ rows, startDate, endDate, lang }: BoardProps) {
   const judge = useJudge();
@@ -75,7 +58,7 @@ export function Board({ rows, startDate, endDate, lang }: BoardProps) {
 
   return (
     <div data-testid="board" data-board="fallback" className="text-sm">
-      <div className="grid grid-cols-[minmax(160px,250px)_minmax(0,1fr)] gap-x-3">
+      <div className="grid grid-cols-[minmax(200px,300px)_minmax(0,1fr)] gap-x-3">
         <div />
         <div className="relative h-5" aria-hidden>
           {ticks.map((ms) => (
@@ -95,7 +78,7 @@ export function Board({ rows, startDate, endDate, lang }: BoardProps) {
               data-state={r.state}
               data-order={r.orderId}
               data-kind={r.kind}
-              className="grid grid-cols-[minmax(160px,250px)_minmax(0,1fr)] items-center gap-x-3"
+              className="grid grid-cols-[minmax(200px,300px)_minmax(0,1fr)] items-center gap-x-3"
             >
               {r.kind === 'order' ? (
                 <button
@@ -110,7 +93,7 @@ export function Board({ rows, startDate, endDate, lang }: BoardProps) {
                 </button>
               ) : (
                 <div title={rowTitle(r, lang, judge)} className={`flex min-w-0 items-center gap-2 py-1.5 pl-5 ${locked ? 'text-stone-400' : 'text-stone-700'}`}>
-                  <StateMark state={r.state} lang={lang} />
+                  <StateChip state={r.state} lang={lang} />
                   <span className={`truncate text-[13px] ${r.kind === 'gate' && !locked ? 'font-medium text-stone-900' : ''}`}>{rowLabel(r, lang, judge)}</span>
                 </div>
               )}

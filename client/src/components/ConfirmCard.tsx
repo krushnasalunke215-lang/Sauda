@@ -35,12 +35,7 @@ export function ConfirmCard({ view, lang, onConfirm }: { view: DealView; lang: L
         </p>
       ) : (
         <>
-          {me?.current ? (
-            <p data-testid="confirm-mine" className="flex items-center gap-2 text-sm font-medium text-emerald-800">
-              <Icon name="check" />
-              {t(lang, 'confirm.youConfirmed')}
-            </p>
-          ) : (
+          {!me?.current && (
             <button
               type="button"
               data-testid="confirm-button"
@@ -55,10 +50,25 @@ export function ConfirmCard({ view, lang, onConfirm }: { view: DealView; lang: L
               {t(lang, 'confirm.button')}
             </button>
           )}
-          <p data-testid="confirm-other" className="mt-2.5 flex items-center gap-2 text-xs text-stone-500">
-            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${other?.current ? 'bg-emerald-500' : 'bg-stone-300'}`} aria-hidden />
-            {other?.current ? t(lang, 'confirm.otherConfirmed', { name: otherName }) : t(lang, 'confirm.otherWaiting', { name: otherName })}
-          </p>
+          {/* Who has confirmed, as two chips: "✓ You" and the other side's name. */}
+          <div className={`flex flex-wrap items-center gap-1.5 ${me?.current ? '' : 'mt-2.5'}`}>
+            {me?.current && (
+              <span data-testid="confirm-mine" className={`${ui.pill} ${ui.tone.done}`}>
+                <Icon name="check" size={12} />
+                {t(lang, 'confirm.you')}
+              </span>
+            )}
+            <span data-testid="confirm-other" data-state={other?.current ? 'confirmed' : 'waiting'} className={`${ui.pill} ${other?.current ? ui.tone.done : ui.tone.quiet}`}>
+              {other?.current ? (
+                <>
+                  <Icon name="check" size={12} />
+                  {otherName}
+                </>
+              ) : (
+                t(lang, 'confirm.otherWaiting', { name: otherName })
+              )}
+            </span>
+          </div>
         </>
       )}
       {judge && (

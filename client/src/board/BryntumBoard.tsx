@@ -40,8 +40,6 @@ function toTasks(rows: BoardRow[], lang: Lang, judge: boolean) {
     endDate: new Date(r.endDate),
     manuallyScheduled: true,
     cls: taskCls(r, rows),
-    // Tree icons as in the payment panel: done = check circle, ready = hollow ring, locked = lock.
-    ...(r.kind === 'order' ? {} : { iconCls: { done: 'fa fa-circle-check sauda-icon-done', ready: 'sauda-icon-ready', locked: 'fa fa-lock sauda-icon-locked' }[r.state] }),
   });
   return rows
     .filter((r) => r.kind === 'order')
@@ -84,8 +82,10 @@ export function Board(props: BoardProps) {
       columns: [
         {
           type: 'name',
-          // Wide enough for a Hindi step name plus the amber "waiting for the PayPal payment" marker.
-          width: 370,
+          // Wide enough for the state chip, a Hindi step name and the amber "waiting for the PayPal payment" marker.
+          width: 440,
+          // The state chip replaces the tree icon on the steps.
+          leafIconCls: null,
           renderer: ({ record }: { record: { id: string | number } }) => {
             const r = byId.get(String(record.id));
             if (!r) return '';
@@ -95,6 +95,16 @@ export function Board(props: BoardProps) {
               dataset: { testid: `board-row-${r.key}`, state: r.state, order: r.orderId, kind: r.kind },
               title: rowTitle(r, lang, judge),
               children: [
+                r.kind === 'order'
+                  ? null
+                  : {
+                      tag: 'span',
+                      className: `sauda-state sauda-state-${r.state}`,
+                      children: [
+                        r.state === 'ready' ? { tag: 'span', className: 'sauda-state-dot' } : { tag: 'i', className: `fa ${r.state === 'done' ? 'fa-check' : 'fa-lock'}` },
+                        { tag: 'span', text: t(lang, `board.state.${r.state}`) },
+                      ],
+                    },
                 { tag: 'span', className: 'sauda-name-text', text: rowLabel(r, lang, judge) },
                 isWaitingGate(r, rows) ? { tag: 'span', className: 'sauda-waiting', dataset: { testid: 'board-waiting' }, text: t(lang, 'board.waiting') } : null,
               ].filter(Boolean),

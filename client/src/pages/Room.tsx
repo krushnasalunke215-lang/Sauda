@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { depositPaid, fullyPaid, otherRole, type DealView, type Lang, type Message, type PhotoKind, type SampleInfo } from '../../../shared/types.js';
+import { depositPaid, otherRole, type DealView, type Lang, type Message, type PhotoKind, type SampleInfo } from '../../../shared/types.js';
 import { ApiError, api, upload } from '../api.js';
 import { sayAloud } from '../audio/speech.js';
 import { AgreementPanel } from '../components/AgreementPanel.js';
@@ -11,13 +11,15 @@ import { DealProgress } from '../components/DealProgress.js';
 import { Icon } from '../components/Icon.js';
 import { MoneyTimeline } from '../components/MoneyTimeline.js';
 import { PaymentMoment } from '../components/PaymentMoment.js';
-import { PaymentPanel } from '../components/PaymentPanel.js';
+import { isSandboxLink, PaymentPanel } from '../components/PaymentPanel.js';
 import { ProductionBoard } from '../components/ProductionBoard.js';
 import { ProposalsPanel } from '../components/ProposalCard.js';
 import { QrImage } from '../components/QrImage.js';
 import { QuestionsPanel } from '../components/QuestionsPanel.js';
+import { PayBar, YourTurn } from '../components/YourTurn.js';
 import { renderError, t } from '../i18n.js';
 import { JudgeMode } from '../judge.js';
+import { nextAction } from '../nextAction.js';
 import { subscribeDeal, type SocketStatus } from '../socket.js';
 import { ui, useCloseOnOutside } from '../ui.js';
 
@@ -399,6 +401,26 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
 
   // Below 768 px the buyer gets one column with tabs and a sticky composer; the maker keeps the stacked columns.
   const mobile = narrow && view.role === 'buyer';
+
+  // "with {name}": the other name in their role colour.
+  const [withBefore, withAfter = ''] = t(lang, 'room.with', { name: '\u0000' }).split('\u0000');
+  const action = nextAction(view);
+  const yourTurn = <YourTurn view={view} lang={lang} action={action} />;
+  // Phone tab dots: only where something is waiting for me.
+  const attention: Record<MobileTab, boolean> = {
+    chat: action?.kind === 'reviewPhoto',
+    agreement: action?.kind === 'confirm' || view.questions.some((q) => q.status === 'open' && q.to === view.role),
+    pay: action?.kind === 'payDeposit' || action?.kind === 'payBalance',
+    timeline: false,
+  };
+  const payLink = view.invoice && isSandboxLink(view.invoice.payerUrl) ? view.invoice.payerUrl : null;
+  const payBar =
+    mobile && payLink && mobileTab !== 'pay' && (action?.kind === 'payDeposit' || action?.kind === 'payBalance') ? (
+      <PayBar
+        url={payLink}
+        label={t(lang, action.kind === 'payDeposit' ? 'pay.payDeposit' : 'pay.payBalance', { amount: `$${(action.cents / 100).toFixed(2)}` })}
+      />
+    ) : null;
   // The production board is the maker's (FEAT-005).
   const board = tab === 'board' && view.role === 'maker';
 
@@ -413,11 +435,16 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
             <span className="text-base font-bold tracking-tight text-stone-900">{t(lang, 'app.name')}</span>
             <span className="h-6 w-px shrink-0 bg-stone-200" aria-hidden />
             <div className="min-w-0 flex-1 leading-tight">
-              <div className="truncate text-sm font-semibold text-stone-900">
-                {me.name} <span className="font-normal text-stone-500">· {t(lang, `role.${view.role}`)}</span>
+              <div className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-stone-900">
+                <span className="truncate">{me.name}</span>
+                <span data-testid="role-chip" className={`${ui.pill} ${ui.role[view.role].chip} shrink-0`}>
+                  {t(lang, `role.${view.role}`)}
+                </span>
               </div>
               <div className="truncate text-xs text-stone-500">
-                {t(lang, 'room.with', { name: other.name })}
+                {withBefore}
+                <span className={`font-medium ${ui.role[otherRole(view.role)].text}`}>{other.name}</span>
+                {withAfter}
                 {judge && ` · SAUDA-${view.id}`}
               </div>
             </div>
@@ -461,13 +488,14 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
                   role="tab"
                   aria-selected={mobileTab === k}
                   data-testid={`mobile-tab-${k}`}
+                  data-attention={attention[k] ? 'true' : 'false'}
                   onClick={() => setMobileTab(k)}
                   className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-lg px-1 py-1.5 font-medium transition-colors ${
                     mobileTab === k ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
                   <span className="truncate">{t(lang, `mtab.${k}`)}</span>
-                  {k === 'pay' && view.invoice && !fullyPaid(view) && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" aria-hidden />}
+                  {attention[k] && <span className="h-2 w-2 shrink-0 rounded-full bg-amber-500" aria-hidden />}
                 </button>
               ))}
             </div>
@@ -480,6 +508,7 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
       {mobile ? (
         <>
           <main className="flex flex-1 flex-col gap-3 p-3" data-testid={`mobile-panel-${mobileTab}`}>
+            {!payBar && yourTurn}
             {mobileTab === 'chat' && <section className={`${ui.card} flex flex-1 flex-col overflow-hidden`}>{chat}</section>}
             {mobileTab === 'agreement' && agreement}
             {mobileTab === 'pay' &&
@@ -496,6 +525,7 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
             {mobileTab === 'timeline' && <MoneyTimeline view={view} lang={lang} />}
           </main>
           <div className="sticky bottom-0 z-10 border-t border-stone-200 bg-white" data-testid="mobile-composer">
+            {payBar}
             {notices}
             {composer}
           </div>
@@ -514,6 +544,7 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
           </section>
 
           <aside className="scroll-quiet flex min-h-0 flex-col gap-4 lg:-mr-2 lg:overflow-y-auto lg:pr-2">
+            {yourTurn}
             <div className="flex shrink-0 gap-1 rounded-xl bg-stone-200/60 p-1 text-sm" role="tablist">
               {(view.role === 'maker' ? (['deal', 'timeline', 'board'] as const) : (['deal', 'timeline'] as const)).map((k) => (
                 <button

@@ -98,8 +98,8 @@ html:lang(hi) .text-sm {
 
 /*
  * Bryntum production board (client/src/board/BryntumBoard.tsx). The same state colours as the
- * fallback board and the payment milestones: done emerald-600, ready emerald-200, locked stone-200,
- * the ship-by date red-500, waiting for a payment amber. Harmless when Bryntum is not installed.
+ * fallback board: done emerald-600, ready sky-200, locked stone-200, the ship-by date red-500,
+ * waiting for a payment amber. Harmless when Bryntum is not installed.
  */
 .sauda-bryntum .b-gantt {
   --b-widget-font-family: var(--font-sans);
@@ -111,8 +111,8 @@ html:lang(hi) .text-sm {
   border-color: var(--color-emerald-600);
 }
 .sauda-bryntum .b-gantt-task.sauda-ready {
-  background: var(--color-emerald-200);
-  border-color: var(--color-emerald-600);
+  background: var(--color-sky-200);
+  border-color: var(--color-sky-600);
 }
 .sauda-bryntum .b-gantt-task.sauda-locked {
   background: var(--color-stone-200);
@@ -128,8 +128,8 @@ html:lang(hi) .text-sm {
   background: var(--color-emerald-600);
 }
 .sauda-bryntum .b-gantt-task.b-milestone.sauda-ready .b-gantt-task-content::before {
-  background: var(--color-emerald-200);
-  box-shadow: inset 0 0 0 1.5px var(--color-emerald-600);
+  background: var(--color-sky-200);
+  box-shadow: inset 0 0 0 1.5px var(--color-sky-600);
 }
 .sauda-bryntum .b-gantt-task.b-milestone.sauda-locked .b-gantt-task-content::before {
   background: var(--color-stone-200);
@@ -180,21 +180,43 @@ html:lang(hi) .text-sm {
   font-weight: 500;
   color: var(--color-amber-800);
 }
-/* Devanagari is never below 13 px (docs/design.md). */
-html:lang(hi) .sauda-waiting {
-  font-size: 13px;
-}
-.sauda-bryntum .b-tree-icon.sauda-icon-locked {
-  color: var(--color-stone-400);
-}
-.sauda-bryntum .b-tree-icon.sauda-icon-done {
-  color: var(--color-emerald-600);
-}
-.sauda-bryntum .b-tree-icon.sauda-icon-ready {
-  width: 1em;
-  height: 1em;
+/* Row state chips, as ui.pill with ui.tone done / ready / quiet on the fallback board. */
+.sauda-state {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
   border-radius: 9999px;
-  box-shadow: inset 0 0 0 2px var(--color-emerald-600);
+  padding: 0.125rem 0.5rem;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.sauda-state .fa {
+  font-size: 9px;
+}
+.sauda-state-done {
+  background: var(--color-emerald-100);
+  color: var(--color-emerald-800);
+}
+.sauda-state-ready {
+  background: var(--color-sky-100);
+  color: var(--color-sky-800);
+}
+.sauda-state-locked {
+  background: var(--color-stone-100);
+  color: var(--color-stone-600);
+}
+.sauda-state-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 1.5px var(--color-sky-600);
+}
+/* Devanagari is never below 13 px (docs/design.md). */
+html:lang(hi) .sauda-waiting,
+html:lang(hi) .sauda-state {
+  font-size: 13px;
 }
 
 /* Thin, quiet scrollbars for the chat and the side panel. */

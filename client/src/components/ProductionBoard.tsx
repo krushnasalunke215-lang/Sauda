@@ -2,8 +2,8 @@ import { lazy, Suspense, useMemo } from 'react';
 import { buildBoard, mergeBoards, sampleOrders } from '../../../shared/board.js';
 import type { DealView, Lang } from '../../../shared/types.js';
 import { t } from '../i18n.js';
+import { StateChip } from '../board/StateChip.js';
 import { ui } from '../ui.js';
-import { Icon } from './Icon.js';
 
 // The board (Bryntum Gantt or the fallback, picked at build time) loads in its own chunk on first open,
 // so pages without the board never download Bryntum or its CSS.
@@ -24,24 +24,15 @@ function BoardSkeleton({ lang }: { lang: Lang }) {
   );
 }
 
-/** The three row states, drawn as on the board (and the payment milestones). */
+/** The three row states, drawn with the same chips as the board rows. */
 function Legend({ lang }: { lang: Lang }) {
   return (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500" data-testid="board-legend">
-      <li className="inline-flex items-center gap-1.5">
-        <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-600 text-white">
-          <Icon name="check" size={9} />
-        </span>
-        {t(lang, 'board.state.done')}
-      </li>
-      <li className="inline-flex items-center gap-1.5">
-        <span className="h-3.5 w-3.5 rounded-full ring-2 ring-inset ring-emerald-600" />
-        {t(lang, 'board.state.ready')}
-      </li>
-      <li className="inline-flex items-center gap-1.5">
-        <Icon name="lock" size={14} className="text-stone-400" />
-        {t(lang, 'board.state.locked')}
-      </li>
+    <ul className="flex flex-wrap items-center gap-1.5" data-testid="board-legend">
+      {(['done', 'ready', 'locked'] as const).map((s) => (
+        <li key={s}>
+          <StateChip state={s} lang={lang} />
+        </li>
+      ))}
     </ul>
   );
 }
@@ -51,11 +42,8 @@ export function ProductionBoard({ view, lang }: { view: DealView; lang: Lang }) 
   const board = useMemo(() => mergeBoards([buildBoard(view), ...sampleOrders(new Date(), lang).map(buildBoard)]), [view, lang]);
   return (
     <section className={`${ui.card} p-5`} data-testid="production-board">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0">
-          <h2 className={ui.title}>{t(lang, 'board.title')}</h2>
-          <p className={`${ui.meta} mt-1 max-w-md leading-relaxed`}>{t(lang, 'board.subtitle')}</p>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h2 className={ui.title}>{t(lang, 'board.title')}</h2>
         <Legend lang={lang} />
       </div>
       <div className="mt-4">

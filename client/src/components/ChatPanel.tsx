@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { otherRole, type Bi, type DealView, type Lang, type Message, type Role } from '../../../shared/types.js';
-import { modelBadge, renderError, renderEvent, t, tMaybe } from '../i18n.js';
+import { langCode, modelBadge, renderError, renderEvent, t, tMaybe } from '../i18n.js';
 import { useJudge } from '../judge.js';
 import { ui } from '../ui.js';
 import { Icon, type IconName } from './Icon.js';
@@ -139,14 +139,27 @@ function PhotoBody({ m, view, lang, actions }: { m: Message; view: DealView; lan
   );
 }
 
-/** Milestones stand out in the conversation; other system events stay quiet. */
-const MILESTONES = new Set(['agreement_confirmed', 'invoice_created', 'deposit_received', 'balance_received', 'paid_in_full', 'shipped', 'progress_approved']);
-const ALERTS = new Set(['invoice_text_changed', 'invoice_cancelled', 'terms_changed', 'progress_changes_requested']);
+/** System events as short chips in the state colours: done or money in, pay, needs action, error, quiet. */
+const EVENT_CHIP: Record<string, { tone: string; icon: IconName }> = {
+  deal_created: { tone: ui.tone.quiet, icon: 'message' },
+  confirmed: { tone: ui.tone.done, icon: 'check' },
+  agreement_confirmed: { tone: ui.tone.done, icon: 'checkCircle' },
+  deposit_received: { tone: ui.tone.done, icon: 'wallet' },
+  balance_received: { tone: ui.tone.done, icon: 'wallet' },
+  paid_in_full: { tone: ui.tone.done, icon: 'wallet' },
+  progress_approved: { tone: ui.tone.done, icon: 'checkCircle' },
+  shipped: { tone: ui.tone.done, icon: 'truck' },
+  invoice_created: { tone: ui.tone.pay, icon: 'wallet' },
+  reminder_sent: { tone: ui.tone.pay, icon: 'bell' },
+  terms_changed: { tone: ui.tone.action, icon: 'alert' },
+  progress_changes_requested: { tone: ui.tone.action, icon: 'camera' },
+  invoice_cancelled: { tone: ui.tone.error, icon: 'x' },
+  invoice_text_changed: { tone: ui.tone.error, icon: 'alert' },
+};
 
 function SystemLine({ m, view, lang, ring }: { m: Message; view: DealView; lang: Lang; ring: string }) {
   const judge = useJudge();
-  const type = m.event?.type ?? '';
-  const tone = MILESTONES.has(type) ? 'bg-emerald-50 text-emerald-800' : ALERTS.has(type) ? 'bg-amber-50 text-amber-900' : 'text-stone-500';
+  const chip = EVENT_CHIP[m.event?.type ?? ''];
   return (
     <div className="flex justify-center">
       <div
@@ -154,9 +167,9 @@ function SystemLine({ m, view, lang, ring }: { m: Message; view: DealView; lang:
         data-testid="message"
         data-seq={m.seq}
         data-from="system"
-        className={`inline-flex max-w-md items-start gap-1.5 rounded-xl px-3 py-1.5 text-center text-xs leading-relaxed ${tone} ${ring}`}
+        className={`inline-flex max-w-md items-center gap-1.5 rounded-full px-3 py-1 text-center text-xs font-medium leading-relaxed ${chip?.tone ?? ui.tone.quiet} ${ring}`}
       >
-        {MILESTONES.has(type) && <Icon name="checkCircle" size={14} className="mt-px" />}
+        {chip && <Icon name={chip.icon} size={14} />}
         <span>{m.event ? renderEvent(lang, m.event, view.parties, judge) : ''}</span>
       </div>
     </div>
@@ -171,6 +184,7 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
   const mine = from === view.role;
   const other = view.parties[otherRole(view.role)];
   const done = m.status === 'done';
+  const code = (l: string | undefined) => (l ? langCode(l) : undefined);
   const photo = m.kind === 'photo' && m.photo;
   // The viewer's language is prominent: their own words, or the translation of the other side's.
   const main = photo ? null : mine ? m.original?.text : done ? m.translation?.text : null;
@@ -191,12 +205,12 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
         data-from={from}
         data-kind={m.kind}
         data-status={m.status}
-        className={`max-w-[80%] rounded-2xl px-4 py-3 ${mine ? 'rounded-br-md bg-emerald-50' : 'rounded-bl-md bg-stone-100'} ${ring}`}
+        className={`max-w-[80%] rounded-2xl px-4 py-3 ${mine ? 'rounded-br-md' : 'rounded-bl-md'} ${ui.role[from].bubble} ${ring}`}
       >
         {photo ? (
           <PhotoBody m={m} view={view} lang={lang} actions={actions} />
         ) : main ? (
-          <p data-testid="message-main" lang={mainLang} className="msg-main whitespace-pre-wrap text-[15px] leading-relaxed text-stone-900">
+          <p data-testid="message-main" lang={code(mainLang)} className="msg-main whitespace-pre-wrap text-[15px] leading-relaxed text-stone-900">
             {main}
           </p>
         ) : m.status === 'failed' ? (
@@ -209,9 +223,16 @@ function Bubble({ m, view, lang, highlight, actions }: { m: Message; view: DealV
           </div>
         )}
         {sub && (
-          <div data-testid="message-sub" className="mt-2">
-            <span className="block text-[11px] font-medium text-stone-500">{mine ? t(lang, 'chat.translatedFor', { name: other.name }) : t(lang, 'chat.original')}</span>
-            <p lang={subLang} className="msg-sub whitespace-pre-wrap text-[13px] leading-relaxed text-stone-600">
+          // The other language under the main text, marked with its code (HI, EN, …); the hover text says which one it is.
+          <div data-testid="message-sub" className="mt-2 flex items-baseline gap-2 border-t border-black/5 pt-2">
+            <span
+              data-testid="message-sub-lang"
+              title={mine ? t(lang, 'chat.translatedFor', { name: other.name }) : t(lang, 'chat.original')}
+              className="shrink-0 text-[11px] font-semibold tracking-wide text-stone-500"
+            >
+              {code(subLang)?.toUpperCase()}
+            </span>
+            <p lang={code(subLang)} className="msg-sub min-w-0 whitespace-pre-wrap text-[13px] leading-relaxed text-stone-600">
               {sub}
             </p>
           </div>

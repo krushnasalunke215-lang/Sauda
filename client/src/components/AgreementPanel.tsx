@@ -59,19 +59,18 @@ function lineText(group: Group, rows: AgreementRow[], view: DealView, lang: Lang
     const lead = value('price') ?? parts.shift() ?? '';
     return { lead, rest: parts.join(' · ') };
   }
-  const date = value('delivery');
   const shipping = value('shipping');
   const parts = [shipping && `${t(lang, 'field.shipping')}: ${shipping}`].filter(Boolean);
-  const lead = date ? t(lang, 'agreement.by', { date }) : (parts.shift() ?? '');
+  const lead = value('delivery') ?? parts.shift() ?? '';
   return { lead, rest: parts.join(' · ') };
 }
 
 /**
- * The agreement card. Three grouped lines (what, price and deposit, delivery) show the terms at a
+ * The agreement card. The "what" line and three tiles (price, deposit, delivery) show the terms at a
  * glance; "Show all details" opens the full list with a source link per term. When a message changes
- * a line, the line flashes once, and the lines changed by the latest message link back to it
+ * a group, it flashes once, and the groups changed by the latest message link back to it
  * ("from Ravi's message"). The questions and the confirm footer come in as children. Once the
- * invoice locks it, the card keeps its three lines and folds the rest.
+ * invoice locks it, the card keeps its line and tiles and folds the rest.
  */
 export function AgreementPanel({ view, lang, onCite, children }: { view: DealView; lang: Lang; onCite: (seq: number) => void; children?: ReactNode }) {
   const judge = useJudge();
@@ -104,51 +103,90 @@ export function AgreementPanel({ view, lang, onCite, children }: { view: DealVie
     return from && from !== 'system' ? t(lang, 'agreement.from', { name: view.parties[from].name }) : null;
   };
 
+  const sourceLink = (l: (typeof lines)[number]) => {
+    const source = l.text.lead && l.seq !== null && l.seq === latest ? sourceName(l.seq) : null;
+    if (!source || l.seq === null) return null;
+    const seq = l.seq;
+    return (
+      <button
+        type="button"
+        data-testid="agreement-source"
+        data-seq={seq}
+        onClick={() => onCite(seq)}
+        title={t(lang, 'agreement.cite')}
+        className="mt-1 inline-flex items-center gap-1 rounded-md text-left text-xs text-stone-500 transition-colors hover:text-amber-800"
+      >
+        <Icon name="message" size={14} />
+        {source}
+        {judge && <span className="font-mono text-[11px] text-stone-400">#{seq}</span>}
+      </button>
+    );
+  };
+  // Each group element keeps the test ids; its key changes on every flash so the animation restarts.
+  const groupProps = (l: (typeof lines)[number]) => ({
+    'data-testid': 'agreement-line',
+    'data-group': l.key,
+    'data-filled': Boolean(l.text.lead),
+  });
+  const flashKey = (l: (typeof lines)[number]) => `${l.key}-${flash[l.key] ?? 0}`;
+
+  // The price, deposit and delivery tiles: amounts and the date stand out; an empty tile says so.
+  const value = (f: AgreementRowField) => a.rows.find((r) => r.field === f)?.value;
+  const d = a.derived;
+  const depositValue = value('deposit') && (d.currency === 'USD' && d.depositCents !== null ? usd(d.depositCents) : value('deposit'));
+  const depositNote = [d.depositPercent !== null ? `${d.depositPercent}%` : null, value('balance') ? `${t(lang, 'field.balance')} ${value('balance')}` : null]
+    .filter(Boolean)
+    .join(' · ');
+  const shipping = value('shipping');
+  const tile = (label: string, main: string | undefined, note: string | null | undefined) => (
+    <div className={`min-w-0 rounded-xl p-3 ${main ? 'bg-emerald-50 ring-1 ring-emerald-100' : 'bg-stone-50'}`}>
+      <div className={`${ui.meta} truncate`}>{label}</div>
+      {main ? (
+        <>
+          <div className="mt-0.5 break-words text-lg font-semibold leading-snug tabular-nums text-emerald-900">{main}</div>
+          {note && <div className="mt-0.5 text-xs leading-snug text-emerald-800/80">{note}</div>}
+        </>
+      ) : (
+        <div className="mt-0.5 text-sm text-stone-400">{t(lang, 'agreement.notYet')}</div>
+      )}
+    </div>
+  );
+  const [what, money, delivery] = lines as [(typeof lines)[number], (typeof lines)[number], (typeof lines)[number]];
+  const whatFilled = Boolean(what.text.lead);
+
   const compact = (
-    <ul data-testid="agreement-lines" className="mt-3 divide-y divide-stone-100" hidden={details}>
-      {lines.map((l) => {
-        const filled = Boolean(l.text.lead);
-        const source = filled && l.seq !== null && l.seq === latest ? sourceName(l.seq) : null;
-        return (
-          <li
-            key={`${l.key}-${flash[l.key] ?? 0}`}
-            data-testid="agreement-line"
-            data-group={l.key}
-            data-filled={filled}
-            className={`-mx-2 flex gap-3 rounded-xl px-2 py-2.5 ${flash[l.key] ? 'term-flash' : ''}`}
-          >
-            <span className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${filled ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-50 text-stone-300'}`} aria-hidden>
-              <Icon name={l.icon} size={16} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className={ui.meta}>{t(lang, `agreement.group.${l.key}`)}</div>
-              {filled ? (
-                <p className="mt-0.5 text-sm leading-relaxed text-stone-700">
-                  <span className={`font-semibold text-stone-900 ${l.key === 'money' ? 'tabular-nums' : ''}`}>{l.text.lead}</span>
-                  {l.text.rest && <span> · {l.text.rest}</span>}
-                </p>
-              ) : (
-                <p className="mt-0.5 text-sm text-stone-400">{t(lang, 'agreement.notYet')}</p>
-              )}
-              {source && l.seq !== null && (
-                <button
-                  type="button"
-                  data-testid="agreement-source"
-                  data-seq={l.seq}
-                  onClick={() => onCite(l.seq!)}
-                  title={t(lang, 'agreement.cite')}
-                  className="mt-1 inline-flex items-center gap-1 rounded-md text-xs text-stone-500 transition-colors hover:text-amber-800"
-                >
-                  <Icon name="message" size={14} />
-                  {source}
-                  {judge && <span className="font-mono text-[11px] text-stone-400">#{l.seq}</span>}
-                </button>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
+    <div data-testid="agreement-lines" className="mt-3 space-y-3" hidden={details}>
+      <div key={flashKey(what)} {...groupProps(what)} className={`-mx-2 flex gap-3 rounded-xl px-2 py-1.5 ${flash.what ? 'term-flash' : ''}`}>
+        <span className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${whatFilled ? 'bg-emerald-50 text-emerald-700' : 'bg-stone-50 text-stone-300'}`} aria-hidden>
+          <Icon name={what.icon} size={16} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className={ui.meta}>{t(lang, 'agreement.group.what')}</div>
+          {whatFilled ? (
+            <p className="mt-0.5 text-sm leading-relaxed text-stone-700">
+              <span className="font-semibold text-stone-900">{what.text.lead}</span>
+              {what.text.rest && <span> · {what.text.rest}</span>}
+            </p>
+          ) : (
+            <p className="mt-0.5 text-sm text-stone-400">{t(lang, 'agreement.notYet')}</p>
+          )}
+          {sourceLink(what)}
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div key={flashKey(money)} {...groupProps(money)} className={`col-span-2 rounded-xl ${flash.money ? 'term-flash' : ''}`}>
+          <div className="grid grid-cols-2 gap-2">
+            {tile(t(lang, 'field.price'), value('price'), null)}
+            {tile(t(lang, 'field.deposit'), depositValue, depositNote)}
+          </div>
+          {sourceLink(money)}
+        </div>
+        <div key={flashKey(delivery)} {...groupProps(delivery)} className={`min-w-0 rounded-xl ${flash.delivery ? 'term-flash' : ''}`}>
+          {tile(t(lang, 'agreement.group.delivery'), value('delivery'), shipping && `${t(lang, 'field.shipping')}: ${shipping}`)}
+          {sourceLink(delivery)}
+        </div>
+      </div>
+    </div>
   );
 
   const table = (
@@ -181,10 +219,14 @@ export function AgreementPanel({ view, lang, onCite, children }: { view: DealVie
   const notes = (
     <>
       {a.missing.length > 0 && (
-        <p data-testid="agreement-missing" className="mt-3 flex items-center gap-2 text-xs text-stone-500">
-          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400" aria-hidden />
-          {t(lang, 'agreement.missing', { fields: a.missing.map((f) => t(lang, `field.${f}`)).join(', ') })}
-        </p>
+        <div data-testid="agreement-missing" className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-stone-500">
+          <span>{t(lang, 'agreement.stillNeeded')}</span>
+          {a.missing.map((f) => (
+            <span key={f} data-testid="agreement-missing-field" data-field={f} className={`${ui.pill} ${ui.tone.action}`}>
+              {t(lang, `field.${f}`)}
+            </span>
+          ))}
+        </div>
       )}
       {a.errors.map((e, i) => (
         <p key={i} data-testid="agreement-error" className="mt-2 flex items-start gap-2 text-xs text-red-700">

@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { LANGS, type CreateDealInput, type CreateDealResult, type Lang } from '../../../shared/types.js';
+import { LANG_ENDONYMS, LANGS, type CreateDealInput, type CreateDealResult, type Lang } from '../../../shared/types.js';
 import { ApiError, api } from '../api.js';
 import { CopyButton } from '../components/CopyButton.js';
 import { Icon } from '../components/Icon.js';
@@ -70,7 +70,7 @@ function LinkRow({ label, url, open, testId }: { label: string; url: string; ope
 /** The default parties, used by the form and by the /demo split screen. */
 export const DEMO_DEAL: CreateDealInput = { makerName: 'Ravi Chikan', makerLang: 'hi', buyerName: 'Emily Carter', buyerLang: 'en' };
 
-const STEPS = ['home.step1', 'home.step2', 'home.step3', 'home.step4', 'home.step5'] as const;
+const STEPS = ['home.step1', 'home.step2', 'home.step3'] as const;
 
 /** The three illustrated "how it works" steps. */
 const HOW = [
@@ -105,25 +105,35 @@ export function Home() {
   const abs = (u: string) => new URL(u, window.location.origin).href;
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-14 sm:py-20">
-      <header className="mx-auto max-w-2xl text-center">
+    <main className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
+      {/* The hero band: the pitch, the demo button and every language, each in its own script. */}
+      <header className="rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-indigo-50 px-6 py-10 text-center ring-1 ring-emerald-100 sm:px-12 sm:py-14">
         <h1 className="text-4xl font-bold tracking-tight text-stone-900">
           {t(UI, 'app.name')} <span className="text-emerald-700">सौदा</span>
         </h1>
-        <p data-testid="home-pitch" className="mt-4 text-lg leading-relaxed text-stone-800 sm:text-xl">
+        <p data-testid="home-pitch" className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-stone-800 sm:text-xl">
           {t(UI, 'home.pitch')}
-        </p>
-        <p data-testid="home-problem" className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-stone-500">
-          {t(UI, 'home.problem')}
         </p>
         <a data-testid="try-demo" href="/demo" className={`${ui.btnPrimary} mt-8 px-6 py-3 text-base`}>
           <Icon name="play" size={14} />
           {t(UI, 'home.tryDemo')}
         </a>
-        <p className={`${ui.meta} mt-3`}>{t(UI, 'home.tryDemoNote')}</p>
+        <ul data-testid="home-langs" aria-label={t(UI, 'home.langs')} className="mx-auto mt-8 flex max-w-2xl flex-wrap justify-center gap-2">
+          {LANGS.map((l) => (
+            <li
+              key={l}
+              data-testid="home-lang"
+              data-lang={l}
+              lang={l}
+              className="rounded-full bg-white px-3 py-1 text-sm font-medium text-emerald-900 shadow-sm ring-1 ring-emerald-200"
+            >
+              {LANG_ENDONYMS[l]}
+            </li>
+          ))}
+        </ul>
       </header>
 
-      <section className="mt-14" data-testid="home-how" aria-labelledby="home-how-title">
+      <section className="mt-10" data-testid="home-how" aria-labelledby="home-how-title">
         <h2 id="home-how-title" className="sr-only">
           {t(UI, 'home.howTitle')}
         </h2>

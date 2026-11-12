@@ -27,28 +27,32 @@ export function QuestionsPanel({ view, lang, onCite, onDismiss }: Props) {
               const raised = seqOf(q.raisedBy);
               const forMe = q.to === view.role;
               const who = forMe ? t(lang, 'questions.forYou') : t(lang, 'questions.forOther', { name: view.parties[q.to].name });
+              // An amber callout; stronger when the answer is mine to give.
               return (
                 <li
                   key={q.id}
                   data-testid="question"
                   data-field={q.field}
                   data-to={q.to}
-                  className={`rounded-xl px-3 py-2.5 text-sm ${forMe ? 'bg-amber-50' : 'bg-stone-50'}`}
+                  className={`flex gap-2.5 rounded-xl px-3 py-2.5 text-sm ${forMe ? 'bg-amber-100 ring-1 ring-amber-300' : 'bg-amber-50 ring-1 ring-amber-100'}`}
                 >
-                  <p data-testid="question-text" className="leading-relaxed text-stone-900">
-                    {q.text[view.role]}
-                  </p>
-                  <div className="mt-1 flex items-center gap-1.5 text-xs text-stone-500">
-                    <span className={forMe ? 'font-medium text-amber-800' : ''}>{who}</span>
-                    {raised !== null && <CiteChip seq={raised} lang={lang} onCite={onCite} />}
-                    <button
-                      type="button"
-                      data-testid="question-dismiss"
-                      className={`${ui.btnGhost} ml-auto px-1.5 py-0.5 text-xs`}
-                      onClick={() => onDismiss(q.id)}
-                    >
-                      {t(lang, 'questions.dismiss')}
-                    </button>
+                  <Icon name="help" size={18} className={`mt-0.5 ${forMe ? 'text-amber-700' : 'text-amber-500'}`} />
+                  <div className="min-w-0 flex-1">
+                    <p data-testid="question-text" className="leading-relaxed text-stone-900">
+                      {q.text[view.role]}
+                    </p>
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-stone-600">
+                      <span className={forMe ? 'font-semibold text-amber-900' : ''}>{who}</span>
+                      {raised !== null && <CiteChip seq={raised} lang={lang} onCite={onCite} />}
+                      <button
+                        type="button"
+                        data-testid="question-dismiss"
+                        className={`${ui.btnGhost} ml-auto px-1.5 py-0.5 text-xs`}
+                        onClick={() => onDismiss(q.id)}
+                      >
+                        {t(lang, 'questions.dismiss')}
+                      </button>
+                    </div>
                   </div>
                 </li>
               );

@@ -53,6 +53,22 @@ export const ui = {
   summary: 'cursor-pointer list-none [&::-webkit-details-marker]:hidden',
   /** A grey placeholder block while something loads. Give it a size (h-*, w-*) and a rounding (rounded-lg, rounded-full, …). */
   skeleton: 'animate-pulse bg-stone-200',
+  /** A small status chip or badge. Add one `tone` (or a `role` chip) for its colour. */
+  pill: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
+  /** State colours: amber = your action, emerald = done or money in, PayPal blue = pay, sky = ready, red = error or deadline. */
+  tone: {
+    action: 'bg-amber-100 text-amber-900',
+    done: 'bg-emerald-100 text-emerald-800',
+    pay: 'bg-paypal/10 text-paypal-dark',
+    ready: 'bg-sky-100 text-sky-800',
+    error: 'bg-red-100 text-red-800',
+    quiet: 'bg-stone-100 text-stone-600',
+  },
+  /** Role colours, so each side is recognisable at a glance: the maker is green, the buyer indigo. */
+  role: {
+    maker: { bubble: 'bg-emerald-50', chip: 'bg-emerald-100 text-emerald-800', text: 'text-emerald-700' },
+    buyer: { bubble: 'bg-indigo-50', chip: 'bg-indigo-100 text-indigo-800', text: 'text-indigo-700' },
+  },
 } as const;
 
 /** Closes a <details> popover on a click outside it or on Escape. */
