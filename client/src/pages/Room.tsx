@@ -66,7 +66,7 @@ function RoomSkeleton() {
           <div className={`${ui.skeleton} ml-auto h-9 w-9 rounded-full lg:ml-0`} />
         </div>
       </div>
-      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_400px] split:grid-cols-[minmax(0,1fr)_340px] split:gap-3 split:p-3">
         <div className={`${ui.card} flex min-h-[60vh] flex-col gap-4 p-6`}>
           <div className={`${ui.skeleton} mx-auto h-3 w-56 rounded-full`} />
           <div className={`${ui.skeleton} h-20 w-3/5 rounded-2xl`} />
@@ -76,7 +76,7 @@ function RoomSkeleton() {
             <div className={`${ui.skeleton} h-24 flex-1 rounded-2xl`} />
           </div>
         </div>
-        <div className="hidden space-y-4 lg:block">
+        <div className="hidden space-y-4 lg:block split:block">
           <div className={`${ui.skeleton} h-10 rounded-xl`} />
           <div className={`${ui.card} space-y-4 p-5`}>
             <div className={`${ui.skeleton} h-4 w-24 rounded-full`} />
@@ -102,9 +102,9 @@ const BUYER_SAMPLE_KEYS = ['composer.sample1', 'composer.sample2', 'composer.sam
 const MOBILE_TABS = ['chat', 'agreement', 'pay', 'timeline'] as const;
 type MobileTab = (typeof MOBILE_TABS)[number];
 
-/** True below 768 px (Tailwind's md breakpoint). */
+/** True below 768 px (Tailwind's md breakpoint); in the /demo split screen below 640 px (where the `split` layout starts). */
 function useNarrow(): boolean {
-  const query = '(max-width: 767.98px)';
+  const query = document.documentElement.dataset.frame ? '(max-width: 639.98px)' : '(max-width: 767.98px)';
   const [narrow, setNarrow] = useState(() => window.matchMedia(query).matches);
   useEffect(() => {
     const mq = window.matchMedia(query);
@@ -528,18 +528,20 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
         </>
       ) : (
         <div
-          className={`mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem-1px)] lg:flex-none lg:grid-rows-[minmax(0,1fr)] ${
+          className={`mx-auto grid w-full max-w-7xl flex-1 gap-4 p-4 lg:h-[calc(100dvh-3.5rem-1px)] lg:flex-none lg:grid-rows-[minmax(0,1fr)] split:h-[calc(100dvh-6rem-1px)] split:flex-none split:grid-rows-[minmax(0,1fr)] split:gap-3 split:p-3 ${
             // The production board needs a wide side panel; the chat narrows while it is open.
-            board ? 'lg:grid-cols-[minmax(340px,1fr)_minmax(0,1.6fr)]' : 'lg:grid-cols-[minmax(0,1fr)_400px]'
+            board
+              ? 'lg:grid-cols-[minmax(340px,1fr)_minmax(0,1.6fr)] split:grid-cols-[minmax(260px,1fr)_minmax(0,1.4fr)]'
+              : 'lg:grid-cols-[minmax(0,1fr)_400px] split:grid-cols-[minmax(0,1fr)_340px]'
           }`}
         >
-          <section className={`${ui.card} flex min-h-[70vh] flex-col overflow-hidden lg:min-h-0`}>
+          <section className={`${ui.card} flex min-h-[70vh] flex-col overflow-hidden lg:min-h-0 split:min-h-0`}>
             {chat}
             {notices}
             {composer}
           </section>
 
-          <aside className="scroll-quiet flex min-h-0 flex-col gap-4 lg:-mr-2 lg:overflow-y-auto lg:pr-2">
+          <aside className="scroll-quiet flex min-h-0 flex-col gap-4 lg:-mr-2 lg:overflow-y-auto lg:pr-2 split:-mr-2 split:gap-3 split:overflow-y-auto split:pr-2">
             {yourTurn}
             <div className="flex shrink-0 gap-1 rounded-xl bg-stone-200/60 p-1 text-sm" role="tablist">
               {(view.role === 'maker' ? (['deal', 'timeline', 'board'] as const) : (['deal', 'timeline'] as const)).map((k) => (

@@ -74,7 +74,7 @@ function Tile({ label, cents, tone, testId }: { label: string; cents: number; to
   return (
     <div className={`rounded-xl p-3 ${tone}`}>
       <dt className="text-xs font-medium opacity-80">{label}</dt>
-      <dd data-testid={testId} className="mt-0.5 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl">
+      <dd data-testid={testId} className="mt-0.5 text-xl font-semibold tracking-tight tabular-nums sm:text-2xl split:text-lg">
         {usd(cents)}
       </dd>
     </div>

@@ -16,7 +16,7 @@ export function App() {
     <main className="mx-auto max-w-md px-4 py-24 text-center">
       <h1 className="text-2xl font-bold tracking-tight text-stone-900">{t('en', 'app.name')}</h1>
       <p className="mt-2 text-sm text-stone-500">{t('en', 'app.notFound')}</p>
-      <a className="mt-6 inline-block text-sm font-medium text-emerald-700 hover:text-emerald-800" href="/">
+      <a className="mt-6 inline-block text-sm font-medium text-brand hover:text-brand-dark" href="/">
         {t('en', 'app.home')}
       </a>
     </main>

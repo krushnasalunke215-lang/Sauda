@@ -28,7 +28,7 @@ The demo pair is Ravi, a chikankari tailor in Lucknow who speaks Hindi, and Emil
 
 ## What it does
 
-- **Two private links, one room.** Each side opens its own link and talks in its own language (Hindi, English, Spanish, French, Brazilian Portuguese, German or Japanese), by push-to-talk, a voice note, a sample clip or typing. Every turn is shown to the other side translated, with the original underneath, and can be read aloud in a voice that matches the speaker. A "Your turn" line names each side's next step, and colour marks who is who (maker green, buyer indigo) and what needs doing (amber).
+- **Two private links, one room.** Each side opens its own link and talks in its own language (Hindi, English, Spanish, French, Brazilian Portuguese, German or Japanese), by push-to-talk, a voice note, a sample clip or typing. Every turn is shown to the other side translated, with the original underneath, and can be read aloud in a voice that matches the speaker. A "Your turn" line names each side's next step, and colour marks who is who (maker blue, buyer lilac, from PayPal's palette) and what needs doing (amber).
 - **An agreement that writes itself, with sources.** Item, size, length, colour, price, deposit, delivery date and shipping fill in as the parties talk. Each term links to the message it came from. When something is unclear, such as whether the price includes shipping, the AI asks the right person.
 
   ![The bilingual agreement with citations and an open shipping question](docs/images/agreement-citations.png)

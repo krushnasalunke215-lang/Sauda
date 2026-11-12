@@ -173,7 +173,8 @@ export function AgreementPanel({ view, lang, onCite, children }: { view: DealVie
           {sourceLink(what)}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      {/* In the /demo split screen the side panel is narrower: the delivery tile gets its own row there. */}
+      <div className="grid grid-cols-3 gap-2 split:grid-cols-2">
         <div key={flashKey(money)} {...groupProps(money)} className={`col-span-2 rounded-xl ${flash.money ? 'term-flash' : ''}`}>
           <div className="grid grid-cols-2 gap-2">
             {tile(t(lang, 'field.price'), value('price'), null)}
@@ -181,7 +182,7 @@ export function AgreementPanel({ view, lang, onCite, children }: { view: DealVie
           </div>
           {sourceLink(money)}
         </div>
-        <div key={flashKey(delivery)} {...groupProps(delivery)} className={`min-w-0 rounded-xl ${flash.delivery ? 'term-flash' : ''}`}>
+        <div key={flashKey(delivery)} {...groupProps(delivery)} className={`min-w-0 rounded-xl split:col-span-2 ${flash.delivery ? 'term-flash' : ''}`}>
           {tile(t(lang, 'agreement.group.delivery'), value('delivery'), shipping && `${t(lang, 'field.shipping')}: ${shipping}`)}
           {sourceLink(delivery)}
         </div>

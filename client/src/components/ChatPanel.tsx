@@ -289,7 +289,7 @@ function EmptyChat({ view, lang }: { view: DealView; lang: Lang }) {
   const other = view.parties[otherRole(view.role)];
   return (
     <div data-testid="chat-empty" className="mx-auto flex max-w-xs flex-col items-center py-8 text-center">
-      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-700" aria-hidden>
+      <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-brand/10 text-brand" aria-hidden>
         <Icon name="message" size={22} />
       </span>
       <p className="mt-3 text-sm font-semibold text-stone-900">{t(lang, 'chat.empty')}</p>

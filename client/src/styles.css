@@ -3,8 +3,24 @@
 /* Design rules: docs/design.md. Tokens beyond the Tailwind palette live here. */
 @theme {
   --font-sans: "Noto Sans", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
-  --color-paypal: #0070ba;
-  --color-paypal-dark: #005ea6;
+  /* PayPal's brand palette (PayPal Brand Identity Quick Guide 2022, see docs/design.md, Colour). */
+  --color-brand: #0070e0; /* Right Blue: primary buttons, the mic, the maker */
+  --color-brand-dark: #003087; /* Left Blue: hover, text on brand tints */
+  --color-paypal: #003087; /* Left Blue: pay buttons */
+  --color-paypal-dark: #001c64; /* Middle Blue: pay button hover, pay chip text */
+  --color-lilac: #a18ef0; /* Lilac 50: the buyer's tints */
+}
+
+/*
+ * A room inside the /demo split screen (main.tsx sets data-frame on <html>), 640-1023 px wide:
+ * it keeps the chat and the side panel side by side, with a narrower side panel.
+ */
+@custom-variant split {
+  @media (40rem <= width < 64rem) {
+    :root[data-frame] & {
+      @slot;
+    }
+  }
 }
 
 html {

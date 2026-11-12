@@ -70,7 +70,7 @@ function StepMark({ state }: { state: StepState }) {
   if (state === 'active')
     return (
       <span className="inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center" aria-hidden>
-        <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-600" />
+        <span className="h-2 w-2 animate-pulse rounded-full bg-brand" />
       </span>
     );
   return <span className="h-3 w-3 shrink-0 rounded-full ring-[1.5px] ring-inset ring-stone-300" aria-hidden />;
@@ -257,7 +257,7 @@ export function Composer(props: ComposerProps) {
           onError={(code) => setHint(tMaybe(lang, `voice.error.${code}`, {}, t(lang, 'voice.error.mic_error')))}
         />
         {/* A size container: the tool labels show only when the box itself is wide enough (not in the narrow chat next to the board). */}
-        <div className="@container min-w-0 flex-1 rounded-2xl bg-stone-50 ring-1 ring-stone-200 transition-shadow focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-600">
+        <div className="@container min-w-0 flex-1 rounded-2xl bg-stone-50 ring-1 ring-stone-200 transition-shadow focus-within:bg-white focus-within:ring-2 focus-within:ring-brand">
           {stage !== 'idle' && stage !== 'recording' && (
             <VoiceStages
               lang={lang}
@@ -328,7 +328,7 @@ export function Composer(props: ComposerProps) {
                           onClick={() => pickSample(s.id)}
                           className={ui.menuItem}
                         >
-                          <Icon name="play" size={12} className="text-emerald-700" />
+                          <Icon name="play" size={12} className="text-brand" />
                           {s.label[lang] ?? s.label.en}
                         </button>
                       ))}

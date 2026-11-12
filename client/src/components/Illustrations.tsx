@@ -14,8 +14,8 @@ export function TalkArt() {
       <text x="42" y="34" textAnchor="middle" fontSize="18" fontWeight="600" className="fill-stone-700">
         अ
       </text>
-      <path d="M58 30h40a10 10 0 0 1 10 10v14a10 10 0 0 1-10 10v8l-10-8H58a10 10 0 0 1-10-10V40a10 10 0 0 1 10-10z" className="fill-emerald-50 stroke-emerald-600" />
-      <text x="78" y="54" textAnchor="middle" fontSize="18" fontWeight="600" className="fill-emerald-800">
+      <path d="M58 30h40a10 10 0 0 1 10 10v14a10 10 0 0 1-10 10v8l-10-8H58a10 10 0 0 1-10-10V40a10 10 0 0 1 10-10z" className="fill-brand/10 stroke-brand" />
+      <text x="78" y="54" textAnchor="middle" fontSize="18" fontWeight="600" className="fill-brand-dark">
         A
       </text>
     </svg>

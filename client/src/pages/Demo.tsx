@@ -15,15 +15,15 @@ function judgeUrl(url: string): string {
   return `${u.pathname}${u.search}`;
 }
 
-/** Each room renders at least this wide, so it keeps its desktop layout (agreement beside the chat) in half a screen. */
-const ROOM_WIDTH = 1100;
-/** Smaller than this and the text gets hard to read; the room then gets less width and its own narrower layout. */
-const MIN_SCALE = 0.62;
+/** Each room renders at least this wide: its `split` layout (chat beside a 340 px side panel) fits from here. */
+const ROOM_WIDTH = 740;
+/** Below this the text gets too small to read in a screen recording; the room then gets less width instead. */
+const MIN_SCALE = 0.85;
 
 /**
- * Side by side (lg and up), a half is often narrower than the room's desktop layout (1024 px): at
- * 1600 px the agreement dropped under the chat and the composer was cut off. So the room renders at
- * ROOM_WIDTH and is scaled down to fit, like a browser zoom, and fills the half's full height.
+ * Side by side (lg and up), a room in its iframe uses the compact `split` layout (styles.css), so it
+ * keeps the agreement beside the chat in half a screen at full text size. Only a half narrower than
+ * ROOM_WIDTH (a 1366 px screen) is scaled down a little, like a browser zoom, never below MIN_SCALE.
  */
 function ScaledFrame({ children }: { children: (style: CSSProperties | undefined) => ReactNode }) {
   const box = useRef<HTMLDivElement>(null);
@@ -86,7 +86,7 @@ export function Demo() {
 
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh" data-testid="demo">
-      <header className="h-14 shrink-0 border-b border-stone-200 bg-white/95">
+      <header className="h-12 shrink-0 border-b border-stone-200 bg-white/95">
         <div className="flex h-full items-center gap-3 px-4">
           <a href="/" className="text-base font-bold tracking-tight text-stone-900">
             {t(UI, 'app.name')}
@@ -111,7 +111,7 @@ export function Demo() {
         </p>
       )}
 
-      <main className="grid flex-1 gap-4 p-4 lg:min-h-0 lg:grid-cols-2">
+      <main className="grid flex-1 gap-3 p-3 lg:min-h-0 lg:grid-cols-2">
         {frames.map(({ role, lang }) => (
           <section key={role} className="flex min-h-0 flex-col">
             <div className="mb-1.5 px-1">

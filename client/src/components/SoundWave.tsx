@@ -55,7 +55,7 @@ export function SoundWave({ stream, className = '' }: { stream: MediaStream | nu
   return (
     <div ref={box} data-testid="sound-wave" aria-hidden className={`flex items-center justify-end gap-[3px] overflow-hidden ${className}`}>
       {Array.from({ length: BARS }, (_, i) => (
-        <span key={i} className="w-[3px] shrink-0 rounded-full bg-emerald-600" style={{ height: '10%' }} />
+        <span key={i} className="w-[3px] shrink-0 rounded-full bg-brand" style={{ height: '10%' }} />
       ))}
     </div>
   );

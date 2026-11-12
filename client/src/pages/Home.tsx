@@ -107,9 +107,9 @@ export function Home() {
   return (
     <main className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
       {/* The hero band: the pitch, the demo button and every language, each in its own script. */}
-      <header className="rounded-3xl bg-gradient-to-br from-emerald-50 via-white to-indigo-50 px-6 py-10 text-center ring-1 ring-emerald-100 sm:px-12 sm:py-14">
+      <header className="rounded-3xl bg-gradient-to-br from-brand/10 via-white to-lilac/20 px-6 py-10 text-center ring-1 ring-brand/15 sm:px-12 sm:py-14">
         <h1 className="text-4xl font-bold tracking-tight text-stone-900">
-          {t(UI, 'app.name')} <span className="text-emerald-700">सौदा</span>
+          {t(UI, 'app.name')} <span className="text-brand">सौदा</span>
         </h1>
         <p data-testid="home-pitch" className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-stone-800 sm:text-xl">
           {t(UI, 'home.pitch')}
@@ -125,7 +125,7 @@ export function Home() {
               data-testid="home-lang"
               data-lang={l}
               lang={l}
-              className="rounded-full bg-white px-3 py-1 text-sm font-medium text-emerald-900 shadow-sm ring-1 ring-emerald-200"
+              className="rounded-full bg-white px-3 py-1 text-sm font-medium text-brand-dark shadow-sm ring-1 ring-brand/20"
             >
               {LANG_ENDONYMS[l]}
             </li>
@@ -144,7 +144,7 @@ export function Home() {
                 <Art />
               </div>
               <div className="mt-4 flex items-center gap-2">
-                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-[11px] font-semibold text-emerald-800">{i + 1}</span>
+                <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand/10 text-[11px] font-semibold text-brand-dark">{i + 1}</span>
                 <h3 className={ui.title}>{t(UI, `home.${key}.title`)}</h3>
               </div>
               <p className="mt-1.5 text-sm leading-relaxed text-stone-600">{t(UI, `home.${key}.text`)}</p>

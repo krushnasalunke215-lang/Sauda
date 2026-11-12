@@ -81,6 +81,67 @@ test('README screenshot: demo split', async ({ browser }) => {
   await home.close();
 });
 
+// Review only: /demo on the user's 1366 x 768 screen (full screen, 100% zoom), the video setup. The
+// home page, then the split screen with the agreement, with the buyer's payment card and after the
+// deposit, plus each half on its own. Runs alone with -g "demo review".
+test('screenshot: demo review', async ({ browser, request }) => {
+  test.setTimeout(600_000);
+  const page = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+  await page.goto('/');
+  await shot(page, 'review-home');
+  await page.goto('/demo');
+  const maker = page.frameLocator('[data-testid="demo-maker"]');
+  const buyer = page.frameLocator('[data-testid="demo-buyer"]');
+  const half = (role: Role) => page.locator('section', { has: page.getByTestId(`demo-${role}`) });
+  await expect(maker.getByTestId('room')).toHaveAttribute('data-role', 'maker');
+  await expect(buyer.getByTestId('room')).toHaveAttribute('data-role', 'buyer');
+  const src = new URL((await page.getByTestId('demo-maker').getAttribute('src'))!, 'http://x');
+  const dealId = src.pathname.split('/').pop()!;
+  const makerToken = src.searchParams.get('t')!;
+
+  const makerMsgs = maker.locator('[data-testid="message"][data-from="maker"]');
+  const buyerMsgs = buyer.locator('[data-testid="message"][data-from="buyer"]');
+  const sample = async (id: string, nth: number) => {
+    await maker.getByTestId('samples-menu').locator('summary').click();
+    await maker.locator(`[data-testid="sample-clip"][data-id="${id}"]`).click();
+    await settled(makerMsgs.nth(nth));
+    await expect(buyer.locator('[data-testid="message"][data-from="maker"]').nth(nth)).toHaveAttribute('data-status', 'done');
+  };
+  await buyer.getByTestId('composer-input').fill(BUYER_TEXT);
+  await buyer.getByTestId('composer-send').click();
+  await settled(buyerMsgs.first());
+  await sample('hindi-order', 0);
+  await shot(page, 'review-demo');
+  await half('buyer').screenshot({ path: `${OUT}review-buyer-agreement.png` });
+
+  // Shipping (asked by the AI or the buyer), then both confirm and the maker approves the invoice.
+  if ((await buyer.locator('[data-testid="question"]').count()) === 0) {
+    await buyer.getByTestId('composer-input').fill(SHIPPING_TEXT);
+    await buyer.getByTestId('composer-send').click();
+    await settled(buyerMsgs.nth(1));
+  }
+  await sample('shipping-answer', 1);
+  await buyer.getByTestId('confirm-button').click();
+  await expect(buyer.getByTestId('confirm-mine')).toBeVisible();
+  await maker.getByTestId('confirm-button').click();
+  await expect(maker.getByTestId('confirm-both')).toBeVisible();
+  await maker.getByTestId('proposal-approve').click();
+  await expect(buyer.getByTestId('payment-panel')).toHaveAttribute('data-status', 'UNPAID');
+  await page.waitForTimeout(1500);
+  await shot(page, 'review-demo-invoice');
+  await half('buyer').screenshot({ path: `${OUT}review-buyer-payment.png` });
+
+  const view = (await (await request.get(`/api/deals/${dealId}`, { headers: { 'x-sauda-token': makerToken } })).json()) as DealView;
+  await recordPayment(view.invoice!.id, 3600);
+  await expect(maker.getByTestId('payment-moment')).toHaveAttribute('data-kind', 'deposit', { timeout: 45_000 });
+  await shot(page, 'review-demo-moment');
+  await expect(maker.getByTestId('payment-moment')).toHaveCount(0, { timeout: 15_000 });
+  await expect(buyer.getByTestId('payment-moment')).toHaveCount(0, { timeout: 15_000 });
+  await shot(page, 'review-demo-deposit');
+  await half('maker').screenshot({ path: `${OUT}review-maker-deposit.png` });
+  await page.close();
+});
+
 test('README screenshots', async ({ browser, request }) => {
   test.setTimeout(900_000);
 
