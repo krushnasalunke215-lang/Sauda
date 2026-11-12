@@ -24,6 +24,10 @@ const NOTE: Record<Lang, (due: string, ref: string) => string> = {
   en: (due, ref) => `Friendly reminder: ${due} is still due on this invoice (${ref}).`,
   hi: (due, ref) => `याद दिलाना: इस इनवॉइस (${ref}) पर अभी ${due} बाकी है।`,
   es: (due, ref) => `Recordatorio: quedan ${due} pendientes en esta factura (${ref}).`,
+  fr: (due, ref) => `Petit rappel : ${due} reste à payer sur cette facture (${ref}).`,
+  pt: (due, ref) => `Lembrete: ainda há ${due} em aberto nesta fatura (${ref}).`,
+  de: (due, ref) => `Freundliche Erinnerung: Auf dieser Rechnung (${ref}) sind noch ${due} offen.`,
+  ja: (due, ref) => `お知らせ：この請求書（${ref}）には、まだ ${due} の未払い残高があります。`,
 };
 
 export const REMINDER_TIMEOUT_MS = 120_000;

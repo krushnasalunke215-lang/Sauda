@@ -1,11 +1,10 @@
 import { useRef, useState } from 'react';
-import { depositPaid, fullyPaid, type DealView, type Lang, type Message } from '../../../shared/types.js';
+import { depositPaid, fullyPaid, LANG_TAGS, type DealView, type Lang, type Message } from '../../../shared/types.js';
 import { t, tMaybe } from '../i18n.js';
 import { ui, useCloseOnOutside } from '../ui.js';
 import { Icon } from './Icon.js';
 import { QrImage } from './QrImage.js';
 
-const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES' };
 const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 /** Only PayPal sandbox pay pages are ever linked. */
@@ -25,7 +24,7 @@ function lastEvent(messages: Message[], types: string[]): Message | undefined {
 /** One payment milestone (deposit, balance or paid in full): a check once received, else a hollow dot. */
 function Milestone({ label, amount, event, lang, testId }: { label: string; amount: string; event: Message | undefined; lang: Lang; testId: string }) {
   const received = Boolean(event);
-  const date = event ? new Intl.DateTimeFormat(LOCALES[lang], { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.createdAt)) : '';
+  const date = event ? new Intl.DateTimeFormat(LANG_TAGS[lang], { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.createdAt)) : '';
   return (
     <li data-testid={testId} data-state={received ? 'received' : 'pending'} className="flex items-center gap-3 py-2 text-sm">
       {received ? (

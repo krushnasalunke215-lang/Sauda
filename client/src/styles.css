@@ -44,6 +44,27 @@ html:lang(hi) .text-sm {
   font-size: 0.9375rem;
   line-height: var(--tw-leading, 1.65);
 }
+/*
+ * Japanese: Han characters are shared with Chinese, so Japanese text must pick the Japanese font
+ * by lang (the room sets <html lang> and each chat line its own lang), or it shows Chinese glyph
+ * forms. Latin text in it stays in Noto Sans.
+ */
+@layer base {
+  :lang(ja) {
+    font-family: "Noto Sans", "Noto Sans JP", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
+  }
+}
+/* On a Japanese page the token itself changes, so the Bryntum board (var(--font-sans)) follows. */
+html:lang(ja) {
+  --font-sans: "Noto Sans", "Noto Sans JP", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
+}
+/* Kanji and kana are dense: as for Devanagari, nothing on a Japanese page is below 13 px. */
+html:lang(ja) .text-\[11px\] {
+  font-size: 13px;
+}
+html:lang(ja) .text-xs {
+  font-size: 0.8125rem;
+}
 /* Chat text in Hindi, on any page: the main line and the grey line under it (lang is set per message). */
 .msg-main:lang(hi) {
   font-size: 16px;
@@ -213,9 +234,11 @@ html:lang(hi) .text-sm {
   border-radius: 9999px;
   box-shadow: inset 0 0 0 1.5px var(--color-sky-600);
 }
-/* Devanagari is never below 13 px (docs/design.md). */
+/* Devanagari and Japanese are never below 13 px (docs/design.md). */
 html:lang(hi) .sauda-waiting,
-html:lang(hi) .sauda-state {
+html:lang(hi) .sauda-state,
+html:lang(ja) .sauda-waiting,
+html:lang(ja) .sauda-state {
   font-size: 13px;
 }
 

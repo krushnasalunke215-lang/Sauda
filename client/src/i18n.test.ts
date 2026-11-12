@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { EVENT_TYPES, LANGS, type Party, type Role } from '../../shared/types.js';
+import { EVENT_TYPES, LANG_ENDONYMS, LANGS, type Party, type Role } from '../../shared/types.js';
 import { DICTS, renderEvent, tMaybe } from './i18n.js';
 
 const SERVER_DIR = fileURLToPath(new URL('../../server', import.meta.url));
@@ -21,7 +21,7 @@ function serverSources(dir = SERVER_DIR): string[] {
 describe('i18n completeness', () => {
   const keys = Object.keys(DICTS.en);
 
-  it('has every key in en, hi and es, non-empty and with the same placeholders', () => {
+  it('has every key in every language, non-empty and with the same placeholders', () => {
     for (const lang of LANGS) {
       const dict = DICTS[lang] as Record<string, string>;
       expect(Object.keys(dict).sort(), lang).toEqual([...keys].sort());
@@ -32,7 +32,19 @@ describe('i18n completeness', () => {
     }
   });
 
-  it('has a renderer for every system event type in all three languages, in both modes', () => {
+  it("names each language in its own script in that language's dictionary", () => {
+    for (const lang of LANGS) expect(DICTS[lang][`lang.${lang}`], lang).toBe(LANG_ENDONYMS[lang]);
+  });
+
+  it('translates most strings of each generated language (English stays only for brand names and codes)', () => {
+    for (const lang of LANGS.filter((l) => !['en', 'hi', 'es'].includes(l))) {
+      const dict = DICTS[lang] as Record<string, string>;
+      const differ = keys.filter((k) => dict[k] !== DICTS.en[k as keyof typeof DICTS.en]).length;
+      expect(differ / keys.length, lang).toBeGreaterThanOrEqual(0.6);
+    }
+  });
+
+  it('has a renderer for every system event type in every language, in both modes', () => {
     for (const lang of LANGS) {
       for (const type of EVENT_TYPES) {
         for (const judge of [false, true]) {

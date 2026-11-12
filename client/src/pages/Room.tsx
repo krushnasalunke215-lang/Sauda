@@ -96,12 +96,8 @@ function RoomSkeleton() {
   );
 }
 
-/** Sample English messages for the buyer (judges tap one instead of typing). */
-export const BUYER_SAMPLE_TEXTS: readonly string[] = [
-  'Hi! I would like a light green chikankari kurta, size medium, 44 inches long, by December 10.',
-  'Does the 120 dollars include shipping to Ohio?',
-  'Looks great, approved!',
-];
+/** Sample buyer messages (judges tap one instead of typing), in the buyer's language. */
+const BUYER_SAMPLE_KEYS = ['composer.sample1', 'composer.sample2', 'composer.sample3'] as const;
 
 const MOBILE_TABS = ['chat', 'agreement', 'pay', 'timeline'] as const;
 type MobileTab = (typeof MOBILE_TABS)[number];
@@ -307,8 +303,8 @@ export function Room({ dealId, token, judge = false }: { dealId: string; token: 
           );
         }
       : undefined;
-  // Sample English messages for the buyer while the terms are still open.
-  const sampleTexts = view.role === 'buyer' && lang === 'en' && !view.invoice ? BUYER_SAMPLE_TEXTS : [];
+  // Sample messages for the buyer while the terms are still open.
+  const sampleTexts = view.role === 'buyer' && !view.invoice ? BUYER_SAMPLE_KEYS.map((k) => t(lang, k)) : [];
 
   const notices = (error || notice) && (
     <div className="space-y-1.5 px-4 pt-2 sm:px-5">

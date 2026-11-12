@@ -16,6 +16,10 @@ const STYLES: Record<Lang, string> = {
   hi: 'natural, warm and conversational, like a person speaking everyday Hindi in India',
   en: 'natural, warm and conversational, at a relaxed everyday pace',
   es: 'natural, warm and conversational, like a person speaking everyday Spanish',
+  fr: 'natural, warm and conversational, like a person speaking everyday French',
+  pt: 'natural, warm and conversational, like a person speaking everyday Brazilian Portuguese',
+  de: 'natural, warm and conversational, like a person speaking everyday German',
+  ja: 'natural, warm and polite, like a person speaking everyday Japanese',
 };
 
 /** The sample rate in a MIME type such as `audio/L16;codec=pcm;rate=24000` (24 kHz when absent). */

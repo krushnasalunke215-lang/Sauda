@@ -175,6 +175,10 @@ const SAMPLE_ITEMS: Record<Lang, [string, string]> = {
   en: ['Block-print cotton saree', 'Embroidered silk dupatta'],
   hi: ['ब्लॉक-प्रिंट सूती साड़ी', 'कढ़ाई वाला रेशमी दुपट्टा'],
   es: ['Sari de algodón estampado a mano', 'Dupatta de seda bordada'],
+  fr: ['Saree en coton imprimé au bloc de bois', 'Dupatta en soie brodée'],
+  pt: ['Saree de algodão estampado em bloco', 'Dupatta de seda bordada'],
+  de: ['Baumwoll-Saree mit Blockdruck', 'Bestickte Seiden-Dupatta'],
+  ja: ['ブロックプリントのコットンサリー', '刺繍入りシルクドゥパッタ'],
 };
 
 /** A minimal DealView for a sample order (only the fields the board reads carry data). */

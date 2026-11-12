@@ -9,6 +9,10 @@ const UNIT_WORDS: Record<Lang, Record<Unit, string>> = {
   en: { in: 'in', cm: 'cm' },
   hi: { in: 'इंच', cm: 'सेमी' },
   es: { in: 'pulg', cm: 'cm' },
+  fr: { in: 'po', cm: 'cm' },
+  pt: { in: 'pol', cm: 'cm' },
+  de: { in: 'Zoll', cm: 'cm' },
+  ja: { in: 'インチ', cm: 'cm' },
 };
 
 /** "44 in (111.8 cm)": the stated unit first, then the other one. */

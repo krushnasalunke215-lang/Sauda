@@ -46,6 +46,36 @@ export function agreementValue(page: Page, field: string): Locator {
   return page.locator(`[data-testid="agreement-row"][data-field="${field}"] [data-testid="agreement-value"]`);
 }
 
+/** Waits until the sender's nth message is interpreted, pressing Retry if the AI failed, then checks the other page. */
+export async function settle(sender: Page, viewer: Page, from: Role, nth: number): Promise<void> {
+  const msg = sender.locator(`[data-testid="message"][data-from="${from}"]`).nth(nth);
+  await expect
+    .poll(
+      async () => {
+        const s = await msg.getAttribute('data-status');
+        if (s === 'failed') await msg.getByTestId('retry').click();
+        return s;
+      },
+      { timeout: 150_000, intervals: [1000] },
+    )
+    .toBe('done');
+  await waitForDoneMessage(viewer, from, nth);
+}
+
+export async function showTab(page: Page, tab: 'deal' | 'timeline' | 'board'): Promise<void> {
+  await page.getByTestId(`tab-${tab}`).click();
+  await expect(page.getByTestId({ deal: 'agreement', timeline: 'timeline', board: 'board' }[tab])).toBeVisible();
+}
+
+/** Checks rows of this deal on the maker's production board (fallback or Bryntum), then goes back to the deal tab. */
+export async function expectBoard(maker: Page, dealId: string, states: Record<string, 'done' | 'ready' | 'locked'>): Promise<void> {
+  await showTab(maker, 'board');
+  for (const [key, state] of Object.entries(states)) {
+    await expect(maker.locator(`[data-testid="board-row-${key}"][data-order="${dealId}"]`)).toHaveAttribute('data-state', state);
+  }
+  await showTab(maker, 'deal');
+}
+
 export function agreementCitation(page: Page, field: string): Locator {
   return page.locator(`[data-testid="agreement-row"][data-field="${field}"] [data-testid="citation"]`);
 }

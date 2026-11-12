@@ -1,9 +1,11 @@
 /** Types shared by the server and the client. Money is always integer cents. */
 
-export type Lang = 'hi' | 'en' | 'es';
-export const LANGS: readonly Lang[] = ['hi', 'en', 'es'];
+export type Lang = 'hi' | 'en' | 'es' | 'fr' | 'pt' | 'de' | 'ja';
+export const LANGS: readonly Lang[] = ['hi', 'en', 'es', 'fr', 'pt', 'de', 'ja'];
 /** Each language's name in its own script (the home page language chips). */
-export const LANG_ENDONYMS: Record<Lang, string> = { hi: 'हिंदी', en: 'English', es: 'Español' };
+export const LANG_ENDONYMS: Record<Lang, string> = { hi: 'हिंदी', en: 'English', es: 'Español', fr: 'Français', pt: 'Português', de: 'Deutsch', ja: '日本語' };
+/** The BCP-47 locale for dates and numbers; Portuguese is Brazilian Portuguese. */
+export const LANG_TAGS: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES', fr: 'fr-FR', pt: 'pt-BR', de: 'de-DE', ja: 'ja-JP' };
 
 export type Role = 'maker' | 'buyer';
 export const ROLES: readonly Role[] = ['maker', 'buyer'];

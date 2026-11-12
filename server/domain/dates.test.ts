@@ -30,5 +30,10 @@ describe('dates', () => {
     expect(formatDate('2026-12-10', 'en')).toBe('December 10, 2026');
     expect(formatDate('2026-12-10', 'hi')).toContain('दिसंबर');
     expect(formatDate('2026-12-10', 'es')).toContain('diciembre');
+    // Exact Intl long dates (Node 24 ICU) in the new languages.
+    expect(formatDate('2026-12-10', 'fr')).toBe('10 décembre 2026');
+    expect(formatDate('2026-12-10', 'pt')).toBe('10 de dezembro de 2026');
+    expect(formatDate('2026-12-10', 'de')).toBe('10. Dezember 2026');
+    expect(formatDate('2026-12-10', 'ja')).toBe('2026年12月10日');
   });
 });

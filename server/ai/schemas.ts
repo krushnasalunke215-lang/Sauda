@@ -21,9 +21,9 @@ export const TURN_SCHEMA = {
   properties: {
     transcript: {
       type: 'string',
-      description: "Verbatim text of the turn in the speaker's own script (Devanagari for Hindi). For typed text, repeat it exactly.",
+      description: "Verbatim text of the turn in the speaker's own script (Devanagari for Hindi, kanji and kana for Japanese). For typed text, repeat it exactly.",
     },
-    detected_language: { type: 'string', description: 'BCP-47 code of the language the turn is in, e.g. hi, en, es.' },
+    detected_language: { type: 'string', description: 'BCP-47 code of the language the turn is in, e.g. hi, en, es, fr, pt, de, ja.' },
     translation: { type: 'string', description: "Faithful, natural translation of the whole turn into the listener's language." },
     terms: {
       type: 'object',

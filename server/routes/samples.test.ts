@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { DealView, SampleInfo } from '../../shared/types.js';
+import { LANGS, type DealView, type SampleInfo } from '../../shared/types.js';
 import type { Interpreter, TurnInput } from '../ai/interpret.js';
 import { ROOT_DIR } from '../config.js';
 import { authed, testApp, turnResult, type TestApp } from './test-helpers.js';
@@ -22,8 +22,10 @@ describe('sample clips', () => {
       role: 'maker',
       lang: 'hi',
       kind: 'voice',
-      label: { en: expect.any(String), hi: expect.stringMatching(/[\u0900-\u097F]/), es: expect.any(String) },
+      label: { ...Object.fromEntries(LANGS.map((l) => [l, expect.any(String)])), hi: expect.stringMatching(/[\u0900-\u097F]/), ja: expect.stringMatching(/[\u3040-\u30FF]/) },
     });
+    // Every sample has a label in every language.
+    for (const s of list) for (const l of LANGS) expect(s.label[l]?.trim(), `${s.id} ${l}`).toBeTruthy();
     expect(JSON.stringify(list)).not.toContain('.m4a');
   });
 

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import type { DealView, Role } from '../shared/types.js';
-import { agreementValue, createDeal, openRoles, sendText, waitForDoneMessage } from './helpers.js';
+import type { DealView } from '../shared/types.js';
+import { agreementValue, createDeal, expectBoard, openRoles, sendText, settle, showTab } from './helpers.js';
 import { recordPayment } from './paypal-helpers.js';
 
 /**
@@ -11,36 +11,6 @@ import { recordPayment } from './paypal-helpers.js';
 
 const BUYER_TEXT = 'Hi! I would like a light green chikankari kurta, size medium, 44 inches long, by December 10.';
 const PAYMENT_TIMEOUT = 45_000;
-
-/** Waits until the sender's nth message is interpreted, pressing Retry if the AI failed, then checks the other page. */
-async function settle(sender: Page, viewer: Page, from: Role, nth: number): Promise<void> {
-  const msg = sender.locator(`[data-testid="message"][data-from="${from}"]`).nth(nth);
-  await expect
-    .poll(
-      async () => {
-        const s = await msg.getAttribute('data-status');
-        if (s === 'failed') await msg.getByTestId('retry').click();
-        return s;
-      },
-      { timeout: 150_000, intervals: [1000] },
-    )
-    .toBe('done');
-  await waitForDoneMessage(viewer, from, nth);
-}
-
-async function showTab(page: Page, tab: 'deal' | 'timeline' | 'board'): Promise<void> {
-  await page.getByTestId(`tab-${tab}`).click();
-  await expect(page.getByTestId({ deal: 'agreement', timeline: 'timeline', board: 'board' }[tab])).toBeVisible();
-}
-
-/** Checks rows of this deal on the maker's production board (fallback or Bryntum), then goes back to the deal tab. */
-async function expectBoard(maker: Page, dealId: string, states: Record<string, 'done' | 'ready' | 'locked'>): Promise<void> {
-  await showTab(maker, 'board');
-  for (const [key, state] of Object.entries(states)) {
-    await expect(maker.locator(`[data-testid="board-row-${key}"][data-order="${dealId}"]`)).toHaveAttribute('data-state', state);
-  }
-  await showTab(maker, 'deal');
-}
 
 test('a full deal: invoice, deposit, progress photo, balance and the tracking card, with recorded payments', async ({ browser, request }) => {
   test.setTimeout(600_000);

@@ -12,6 +12,10 @@ import '@bryntum/gantt-community/gantt.css';
 import '@bryntum/gantt-community/svalbard-light.css';
 import '@bryntum/gantt-community/locales/gantt.locale.Hi.js';
 import '@bryntum/gantt-community/locales/gantt.locale.Es.js';
+import '@bryntum/gantt-community/locales/gantt.locale.FrFr.js';
+import '@bryntum/gantt-community/locales/gantt.locale.PtBr.js';
+import '@bryntum/gantt-community/locales/gantt.locale.De.js';
+import '@bryntum/gantt-community/locales/gantt.locale.Ja.js';
 import { LocaleManager, StringHelper } from '@bryntum/core-community';
 import { Gantt } from '@bryntum/gantt-community';
 import { useEffect, useRef } from 'react';
@@ -22,7 +26,7 @@ import { useJudge } from '../judge.js';
 import { formatDay, isWaitingGate, rowLabel, rowTitle, startsExpanded, type BoardProps } from './props.js';
 
 const DAY = 86_400_000;
-const BRYNTUM_LOCALE: Record<Lang, string> = { en: 'En', hi: 'Hi', es: 'Es' };
+const BRYNTUM_LOCALE: Record<Lang, string> = { en: 'En', hi: 'Hi', es: 'Es', fr: 'FrFr', pt: 'PtBr', de: 'De', ja: 'Ja' };
 
 /** CSS classes for a row's bar or diamond (styled in styles.css). */
 function taskCls(r: BoardRow, rows: BoardRow[]): string {

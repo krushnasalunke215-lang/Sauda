@@ -12,5 +12,9 @@ describe('units', () => {
     expect(formatMeasurement({ value: 44, unit: 'in' }, 'en')).toBe('44 in (111.8 cm)');
     expect(formatMeasurement({ value: 44, unit: 'in' }, 'hi')).toBe('44 इंच (111.8 सेमी)');
     expect(formatMeasurement({ value: 100, unit: 'cm' }, 'es')).toBe('100 cm (39.4 pulg)');
+    expect(formatMeasurement({ value: 44, unit: 'in' }, 'fr')).toBe('44 po (111.8 cm)');
+    expect(formatMeasurement({ value: 44, unit: 'in' }, 'pt')).toBe('44 pol (111.8 cm)');
+    expect(formatMeasurement({ value: 44, unit: 'in' }, 'de')).toBe('44 Zoll (111.8 cm)');
+    expect(formatMeasurement({ value: 100, unit: 'cm' }, 'ja')).toBe('100 cm (39.4 インチ)');
   });
 });

@@ -7,7 +7,11 @@
     "label": {
       "en": "Full order in Hindi (23 s): kurta, size, length, colour, price, deposit, date",
       "hi": "पूरा ऑर्डर (23 सेकंड): कुर्ता, साइज़, लंबाई, रंग, कीमत, एडवांस, तारीख",
-      "es": "Pedido completo en hindi (23 s): kurta, talla, largo, color, precio, anticipo, fecha"
+      "es": "Pedido completo en hindi (23 s): kurta, talla, largo, color, precio, anticipo, fecha",
+      "fr": "Commande complète en hindi (23 s) : kurta, taille, longueur, couleur, prix, acompte, date",
+      "pt": "Pedido completo em hindi (23 s): kurta, tamanho, comprimento, cor, preço, sinal, data",
+      "de": "Vollständige Bestellung auf Hindi (23 s): Kurta, Größe, Länge, Farbe, Preis, Anzahlung, Datum",
+      "ja": "ヒンディー語での注文全体 (23秒): kurta、サイズ、丈、色、価格、前金、日付"
     },
     "kind": "voice"
   },
@@ -19,7 +23,11 @@
     "label": {
       "en": "Terms only in Hindi (10 s): colour, price, deposit, date",
       "hi": "सिर्फ़ शर्तें (10 सेकंड): रंग, कीमत, एडवांस, तारीख",
-      "es": "Solo condiciones en hindi (10 s): color, precio, anticipo, fecha"
+      "es": "Solo condiciones en hindi (10 s): color, precio, anticipo, fecha",
+      "fr": "Conditions seules en hindi (10 s) : couleur, prix, acompte, date",
+      "pt": "Apenas termos em hindi (10 s): cor, preço, sinal, data",
+      "de": "Nur Bedingungen auf Hindi (10 s): Farbe, Preis, Anzahlung, Datum",
+      "ja": "ヒンディー語での条件のみ (10秒): 色、価格、前金、日付"
     },
     "kind": "voice"
   },
@@ -31,7 +39,11 @@
     "label": {
       "en": "Shipping answer in Hindi (8 s): yes, shipping to the US is included in $120",
       "hi": "शिपिंग का जवाब (8 सेकंड): हाँ, 120 डॉलर में अमेरिका तक शिपिंग शामिल है",
-      "es": "Respuesta sobre el envío en hindi (8 s): sí, el envío a EE. UU. está incluido en 120 $"
+      "es": "Respuesta sobre el envío en hindi (8 s): sí, el envío a EE. UU. está incluido en 120 $",
+      "fr": "Réponse sur la livraison en hindi (8 s) : oui, livraison aux États-Unis incluse dans les 120 $",
+      "pt": "Resposta sobre frete em hindi (8 s): sim, envio para os EUA está incluso nos $120",
+      "de": "Versandantwort auf Hindi (8 s): Ja, Versand in die USA ist in den $120 enthalten",
+      "ja": "ヒンディー語での配送の回答 (8秒): はい、アメリカへの送料は$120に含まれています"
     },
     "kind": "voice"
   },
@@ -43,7 +55,11 @@
     "label": {
       "en": "Progress note in Hindi (8 s): the kurta is ready, sending a photo",
       "hi": "काम की खबर (8 सेकंड): कुर्ता तैयार है, फ़ोटो भेज रहा हूँ",
-      "es": "Nota de avance en hindi (8 s): la kurta está lista, envío una foto"
+      "es": "Nota de avance en hindi (8 s): la kurta está lista, envío una foto",
+      "fr": "Point d'étape en hindi (8 s) : le kurta est prêt, envoi d'une photo",
+      "pt": "Nota de progresso em hindi (8 s): a kurta está pronta, enviando uma foto",
+      "de": "Fortschrittsnotiz auf Hindi (8 s): Die Kurta ist fertig, sende ein Foto",
+      "ja": "ヒンディー語での進捗連絡 (8秒): kurtaが完成しました、写真を送ります"
     },
     "kind": "voice"
   },
@@ -55,7 +71,11 @@
     "label": {
       "en": "Shipped in Hindi (9 s): sent with DHL, tracking number 4567891234",
       "hi": "भेज दिया (9 सेकंड): DHL से भेजा, ट्रैकिंग नंबर 4567891234",
-      "es": "Enviado en hindi (9 s): enviado con DHL, número de seguimiento 4567891234"
+      "es": "Enviado en hindi (9 s): enviado con DHL, número de seguimiento 4567891234",
+      "fr": "Expédition en hindi (9 s) : envoyé par DHL, numéro de suivi 4567891234",
+      "pt": "Enviado em hindi (9 s): enviado pela DHL, código de rastreamento 4567891234",
+      "de": "Versand auf Hindi (9 s): Mit DHL versendet, Sendungsnummer 4567891234",
+      "ja": "ヒンディー語での発送連絡 (9秒): DHLで発送しました、追跡番号は4567891234です"
     },
     "kind": "voice"
   },
@@ -67,7 +87,11 @@
     "label": {
       "en": "Sample reference photo: a plain light green colour swatch",
       "hi": "सैंपल नमूने की फ़ोटो: हल्के हरे रंग का सादा नमूना",
-      "es": "Foto de referencia de muestra: una muestra lisa de color verde claro"
+      "es": "Foto de referencia de muestra: una muestra lisa de color verde claro",
+      "fr": "Exemple de photo de référence : échantillon de couleur vert clair uni",
+      "pt": "Foto de referência de exemplo: amostra de cor verde-claro lisa",
+      "de": "Beispiel-Referenzfoto: schlichtes hellgrünes Farbmuster",
+      "ja": "参考写真のサンプル: 無地の薄緑色の色見本"
     },
     "kind": "photo"
   },
@@ -79,7 +103,11 @@
     "label": {
       "en": "Sample progress photo: a plain light green colour swatch",
       "hi": "सैंपल काम की फ़ोटो: हल्के हरे रंग का सादा नमूना",
-      "es": "Foto de avance de muestra: una muestra lisa de color verde claro"
+      "es": "Foto de avance de muestra: una muestra lisa de color verde claro",
+      "fr": "Exemple de photo d'avancement : échantillon de couleur vert clair uni",
+      "pt": "Foto de progresso de exemplo: amostra de cor verde-claro lisa",
+      "de": "Beispiel-Fortschrittsfoto: schlichtes hellgrünes Farbmuster",
+      "ja": "進捗写真のサンプル: 無地の薄緑色の色見本"
     },
     "kind": "photo"
   }

@@ -2,6 +2,7 @@ import { loadConfig, paypalConfigured } from '../server/config.js';
 import { paypalToday } from '../server/domain/dates.js';
 import { fmt } from '../server/domain/money.js';
 import { expectOk, PayPalClient } from '../server/paypal/client.js';
+import { getInvoice } from '../server/paypal/invoices.js';
 
 let client: PayPalClient | null = null;
 
@@ -27,4 +28,10 @@ export async function recordPayment(invoiceId: string, cents: number): Promise<s
     'record payment',
   );
   return String(r.body?.payment_id ?? '');
+}
+
+/** The note PayPal stores on a sandbox invoice (the bilingual agreement text). */
+export async function invoiceNote(invoiceId: string): Promise<string> {
+  const r = expectOk(await getInvoice(paypal(), invoiceId, { quiet: true, label: 'e2e-get-invoice' }), 'get invoice');
+  return String(r.body?.detail?.note ?? '');
 }

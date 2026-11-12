@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalHash } from './agreement.js';
+import { LANGS, type Lang } from '../../shared/types.js';
+import { makeDeal } from '../deals/store.js';
+import { canonicalHash, emptyPatch, patchDeal } from './agreement.js';
 import {
   AgreementTooLongError,
   agreementRows,
@@ -9,11 +11,91 @@ import {
   buildReference,
   buildTerms,
   checkTextLimits,
+  LIMITS,
   summaryLines,
 } from './agreement-text.js';
-import { NOW, spikeDeal } from './test-fixtures.js';
+import { NOW, spikeDeal, TODAY } from './test-fixtures.js';
 
 const bytes = (s: string) => Buffer.byteLength(s, 'utf8');
+
+const MEASUREMENT_KEYS = ['length', 'chest', 'waist', 'shoulder', 'sleeve', 'hip'];
+
+/** A long, realistic order in every language (fr, pt, de, ja drafted by scripts/translate-strings.ts). */
+const LONG_ORDER: Record<Lang, { item: string; size: string; color: string; measurements: string[] }> = {
+  hi: {
+    item: 'हाथ की कढ़ाई वाला चिकनकारी कुर्ता, शीशे के काम, स्कैलप्ड किनारी और मैचिंग सूती अस्तर के साथ',
+    size: 'मीडियम, नाप से सिला हुआ',
+    color: 'हल्का पिस्ता हरा, हाथीदांत रंग के धागे के साथ',
+    measurements: ['लंबाई', 'छाती', 'कमर', 'कंधे की चौड़ाई', 'आस्तीन की लंबाई', 'कूल्हा'],
+  },
+  en: {
+    item: 'Hand-embroidered chikankari kurta with mirror work, scalloped hem and a matching cotton lining',
+    size: 'Medium, custom fitted',
+    color: 'Light pista green with ivory thread',
+    measurements: ['Length', 'Chest', 'Waist', 'Shoulder width', 'Sleeve length', 'Hip'],
+  },
+  es: {
+    item: 'Kurta chikankari bordada a mano con espejitos, dobladillo festoneado y forro de algodón a juego',
+    size: 'Mediana, a medida',
+    color: 'Verde pistacho claro con hilo marfil',
+    measurements: ['Largo', 'Pecho', 'Cintura', 'Ancho de hombros', 'Largo de manga', 'Cadera'],
+  },
+  fr: {
+    item: 'Kurta chikankari brodé à la main avec incrustations de miroirs, ourlet festonné et doublure en coton assortie',
+    size: 'M, confectionné sur mesure',
+    color: 'Vert pistache clair avec fil ivoire',
+    measurements: ['Longueur', 'Tour de poitrine', 'Tour de taille', "Largeur d'épaules", 'Longueur des manches', 'Tour de hanches'],
+  },
+  pt: {
+    item: 'Kurta chikankari bordada à mão com apliques de espelho, barra ondulada e forro de algodão combinando',
+    size: 'Médio, sob medida',
+    color: 'Verde-pistache claro com linha marfim',
+    measurements: ['Comprimento', 'Busto/Tórax', 'Cintura', 'Largura dos ombros', 'Comprimento da manga', 'Quadril'],
+  },
+  de: {
+    item: 'Handgestickte Chikankari-Kurta mit Spiegelarbeiten, Bogenkante und passendem Baumwollfutter',
+    size: 'Medium, maßgeschneidert',
+    color: 'Helles Pistaziengrün mit elfenbeinfarbenem Garn',
+    measurements: ['Länge', 'Brust', 'Taille', 'Schulterbreite', 'Ärmellänge', 'Hüfte'],
+  },
+  ja: {
+    item: '手刺繍のチカンカリ・クルタ（ミラーワーク、スカラップヘム、同色のコットン裏地付き）',
+    size: 'M（カスタムフィット）',
+    color: 'ライトピスタグリーン（アイボリーの糸）',
+    measurements: ['着丈', '身幅', 'ウエスト', '肩幅', '袖丈', 'ヒップ'],
+  },
+};
+
+/** Every term set, six measurements, both sides confirmed: the longest invoice text a real order produces. */
+function longDeal(maker: Lang, buyer: Lang) {
+  const deal = makeDeal({ maker: { name: 'Ravi Chikan', lang: maker }, buyer: { name: 'Emily Carter', lang: buyer } }, NOW);
+  deal.id = 'TESTDEAL';
+  const m = LONG_ORDER[maker];
+  const b = LONG_ORDER[buyer];
+  patchDeal(
+    deal,
+    {
+      ...emptyPatch(),
+      item: { maker: m.item, buyer: b.item },
+      quantity: 2,
+      size: { maker: m.size, buyer: b.size },
+      color: { maker: m.color, buyer: b.color },
+      measurements: MEASUREMENT_KEYS.map((key, i) => ({ key, label: { maker: m.measurements[i]!, buyer: b.measurements[i]! }, value: 20 + i * 4.5, unit: 'in' as const })),
+      priceAmount: 1240.5,
+      priceCurrency: 'USD',
+      depositPercent: 30,
+      deliveryDateIso: '2026-12-10',
+      deliveryDateSpoken: '10 December',
+      shippingIncluded: true,
+    },
+    'm1',
+    NOW,
+    TODAY,
+  );
+  const hash = canonicalHash(deal);
+  deal.confirmations = { maker: { hash, at: NOW.toISOString() }, buyer: { hash, at: NOW.toISOString() } };
+  return deal;
+}
 
 describe('invoice texts', () => {
   it('builds the bilingual note in the "local / english" line format with the full hash', () => {
@@ -57,6 +139,36 @@ describe('invoice texts', () => {
     const name = buildItemName(deal);
     expect(bytes(name)).toBeLessThanOrEqual(200);
     expect(name).toMatch(/… × 3$/);
+  });
+
+  it('fits PayPal byte limits for every ordered pair of languages with a long, realistic order', () => {
+    let largest = { pair: '', bytes: 0 };
+    for (const maker of LANGS) {
+      for (const buyer of LANGS) {
+        if (maker === buyer) continue;
+        const deal = longDeal(maker, buyer);
+        const pair = `${maker} maker, ${buyer} buyer`;
+        expect(checkTextLimits(deal), pair).toEqual([]);
+        const note = buildNote(deal);
+        expect(note, pair).toContain('SHA-256:');
+        expect(bytes(note), pair).toBeLessThanOrEqual(LIMITS.note);
+        expect(bytes(buildTerms(deal)), pair).toBeLessThanOrEqual(LIMITS.terms);
+        expect(bytes(buildItemDescription(deal)), pair).toBeLessThanOrEqual(LIMITS.itemDescription);
+        expect(bytes(buildItemName(deal)), pair).toBeLessThanOrEqual(LIMITS.itemName);
+        expect(bytes(buildReference(deal)), pair).toBeLessThanOrEqual(LIMITS.reference);
+        if (bytes(note) > largest.bytes) largest = { pair, bytes: bytes(note) };
+      }
+    }
+    console.log(`largest invoice note: ${largest.bytes} of ${LIMITS.note} bytes (${largest.pair})`);
+  });
+
+  it('writes the new languages into the note with their own labels and dates', () => {
+    const note = buildNote(longDeal('ja', 'fr'));
+    expect(note.split('\n')[0]).toBe('Sauda 注文合意書 / Accord de commande Sauda SAUDA-TESTDEAL');
+    expect(note).toContain('作り手 / Artisan: Ravi Chikan (日本語)');
+    expect(note).toContain('2026年12月10日');
+    expect(note).toContain('10 décembre 2026');
+    expect(note).toContain('インチ');
   });
 
   it('rejects a Hindi-heavy note over 4000 bytes before PayPal is called', () => {

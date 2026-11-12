@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
-import type { DealView, Lang, TimelineEntry } from '../../../shared/types.js';
+import { LANG_TAGS, type DealView, type Lang, type TimelineEntry } from '../../../shared/types.js';
 import { t, tMaybe } from '../i18n.js';
 import { ui } from '../ui.js';
 
-const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES' };
 const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
 type Tone = 'call' | 'fail' | 'money' | 'status' | 'webhook' | 'ship' | 'alert';
@@ -35,7 +34,7 @@ function Item({ tone, time, title, attrs, children }: { tone: Tone; time: string
 }
 
 function Row({ e, lang }: { e: TimelineEntry; lang: Lang }) {
-  const time = new Intl.DateTimeFormat(LOCALES[lang], { timeStyle: 'medium' }).format(new Date(e.at));
+  const time = new Intl.DateTimeFormat(LANG_TAGS[lang], { timeStyle: 'medium' }).format(new Date(e.at));
   switch (e.type) {
     case 'paypal_call': {
       const failed = Boolean(e.error) || (e.status !== null && e.status >= 400);

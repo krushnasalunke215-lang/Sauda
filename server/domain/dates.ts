@@ -1,6 +1,4 @@
-import type { Lang } from '../../shared/types.js';
-
-const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES' };
+import { LANG_TAGS, type Lang } from '../../shared/types.js';
 
 /** Today's date in UTC as YYYY-MM-DD. */
 export function todayUtc(now: Date = new Date()): string {
@@ -31,5 +29,5 @@ export function isNotPast(s: string, today: string): boolean {
 
 /** "December 10, 2026" / "10 दिसंबर 2026" / "10 de diciembre de 2026". */
 export function formatDate(iso: string, lang: Lang): string {
-  return new Intl.DateTimeFormat(LOCALES[lang], { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
+  return new Intl.DateTimeFormat(LANG_TAGS[lang], { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${iso}T00:00:00Z`));
 }

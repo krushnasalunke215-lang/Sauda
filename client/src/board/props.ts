@@ -1,5 +1,5 @@
 import { SAMPLE_ORDER_IDS, type BoardDependency, type BoardRow } from '../../../shared/board.js';
-import type { Lang } from '../../../shared/types.js';
+import { LANG_TAGS, type Lang } from '../../../shared/types.js';
 import { t, tMaybe, tView } from '../i18n.js';
 
 /** What both production boards (FallbackBoard and BryntumBoard) receive. */
@@ -11,11 +11,9 @@ export interface BoardProps {
   lang: Lang;
 }
 
-const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-US', es: 'es-ES' };
-
 /** "10 Dec" in the viewer's language. Board dates are whole UTC days. */
 export function formatDay(isoDate: string, lang: Lang): string {
-  return new Intl.DateTimeFormat(LOCALES[lang], { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(isoDate));
+  return new Intl.DateTimeFormat(LANG_TAGS[lang], { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(isoDate));
 }
 
 /** A row's name in the viewer's language. The SAUDA-<id> prefix of an order shows only in judge mode. */

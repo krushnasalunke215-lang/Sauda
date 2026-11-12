@@ -2,7 +2,7 @@ import { otherRole, type Deal, type Lang, type Role } from '../../shared/types.j
 import { derive } from '../domain/agreement.js';
 import { todayUtc } from '../domain/dates.js';
 
-const LANG_NAMES: Record<Lang, string> = { hi: 'Hindi', en: 'English', es: 'Spanish' };
+const LANG_NAMES: Record<Lang, string> = { hi: 'Hindi', en: 'English', es: 'Spanish', fr: 'French', pt: 'Brazilian Portuguese', de: 'German', ja: 'Japanese' };
 
 export const TURN_SYSTEM = [
   'You are the interpreter inside Sauda, a deal room where a maker and a buyer who speak different languages negotiate a custom order.',
